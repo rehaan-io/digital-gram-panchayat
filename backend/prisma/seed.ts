@@ -3,19 +3,53 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log('Seeding database...');
+// Helper to upsert a record in single-row settings tables
+async function upsertSingleRow(model: any, data: any) {
+  const existing = await model.findFirst();
+  if (existing) {
+    return await model.update({
+      where: { id: existing.id },
+      data,
+    });
+  } else {
+    return await model.create({
+      data,
+    });
+  }
+}
 
-  // Create default Admin
+// Helper to upsert list records by a unique/identifying text field
+async function upsertByKey(model: any, keyField: string, keyValue: string, data: any) {
+  const existing = await model.findFirst({
+    where: { [keyField]: keyValue },
+  });
+  if (existing) {
+    return await model.update({
+      where: { id: existing.id },
+      data,
+    });
+  } else {
+    return await model.create({
+      data: {
+        [keyField]: keyValue,
+        ...data,
+      },
+    });
+  }
+}
+
+async function main() {
+  console.log('Running database seed...');
+
+  // 1. Create Default Admin User
   const adminEmail = 'admin@panchayat.gov.in';
-  const existingAdmin = await prisma.user.findUnique({
+  let adminUser = await prisma.user.findUnique({
     where: { email: adminEmail },
   });
 
-  let adminId = '';
-  if (!existingAdmin) {
+  if (!adminUser) {
     const hashedPassword = await bcrypt.hash('Admin@123', 10);
-    const newAdmin = await prisma.user.create({
+    adminUser = await prisma.user.create({
       data: {
         username: 'admin',
         email: adminEmail,
@@ -26,19 +60,16 @@ async function main() {
         isVerified: true,
       },
     });
-    adminId = newAdmin.id;
-    console.log('Default Admin user created successfully.');
+    console.log('Default Admin user created.');
   } else {
-    adminId = existingAdmin.id;
     console.log('Admin user already exists.');
   }
 
-  // Create default Citizen for testing
+  // 2. Create Default Citizen User (Only if not existing)
   const citizenEmail = 'citizen@example.com';
   const existingCitizen = await prisma.user.findUnique({
     where: { email: citizenEmail },
   });
-
   if (!existingCitizen) {
     const hashedPassword = await bcrypt.hash('Citizen@123', 10);
     await prisma.user.create({
@@ -52,15 +83,14 @@ async function main() {
         isVerified: true,
       },
     });
-    console.log('Test Citizen user created successfully.');
+    console.log('Test Citizen user created.');
   }
 
-  // Create default Employee for testing
+  // 3. Create Default Employee User (Only if not existing)
   const employeeEmail = 'employee@example.com';
   const existingEmployee = await prisma.user.findUnique({
     where: { email: employeeEmail },
   });
-
   if (!existingEmployee) {
     const hashedPassword = await bcrypt.hash('Employee@123', 10);
     await prisma.user.create({
@@ -80,10 +110,10 @@ async function main() {
         },
       },
     });
-    console.log('Test Employee user created successfully.');
+    console.log('Test Employee user created.');
   }
 
-  // Define default Homepage sections
+  // 4. Seeding Homepage Sections
   const sections = [
     {
       key: 'about',
@@ -185,7 +215,6 @@ async function main() {
     },
   ];
 
-  // Insert or Update sections
   for (const sec of sections) {
     await prisma.homepageSection.upsert({
       where: { key: sec.key },
@@ -193,59 +222,61 @@ async function main() {
       create: { key: sec.key, title: sec.title, content: sec.content, titleTe: sec.titleTe, contentTe: sec.contentTe },
     });
   }
+  console.log('Homepage sections seeded.');
 
-  // Create an initial Announcement
-  await prisma.announcement.deleteMany({});
-  await prisma.announcement.create({
-    data: {
-      title: 'Gram Sabha Meeting - July 2026',
-      titleTe: 'గ్రామ సభ సమావేశం - జూలై 2026',
-      content: 'The official monthly Gram Sabha meeting will be held on July 10, 2026, to discuss the budget allocation for sanitation projects and drinking water extensions.',
-      contentTe: 'పారిశుద్ధ్య ప్రాజెక్టులు మరియు త్రాగునీటి విస్తరణల కోసం బడ్జెట్ కేటాయింపులపై చర్చించడానికి జూలై 10, 2026 న అధికారిక నెలవారీ గ్రామ సభ సమావేశం నిర్వహించబడుతుంది.',
-      adminId: adminId,
-    },
-  });
+  // 5. Initial Sample Announcement (Only if no announcements exist)
+  const announcementCount = await prisma.announcement.count();
+  if (announcementCount === 0) {
+    await prisma.announcement.create({
+      data: {
+        title: 'Gram Sabha Meeting - July 2026',
+        titleTe: 'గ్రామ సభ సమావేశం - జూలై 2026',
+        content: 'The official monthly Gram Sabha meeting will be held on July 10, 2026, to discuss the budget allocation for sanitation projects and drinking water extensions.',
+        contentTe: 'పారిశుద్ధ్య ప్రాజెక్టులు మరియు త్రాగునీటి విస్తరణల కోసం బడ్జెట్ కేటాయింపులపై చర్చించడానికి జూలై 10, 2026 న అధికారిక నెలవారీ గ్రామ సభ సమావేశం నిర్వహించబడుతుంది.',
+        adminId: adminUser.id,
+      },
+    });
+    console.log('Default sample announcement created.');
+  }
 
-  // Seed About GP Details
-  await prisma.aboutGP.deleteMany({});
-  await prisma.aboutGP.create({
-    data: {
-      gpName: 'Gorantla',
-      mandal: 'Gorantla',
-      district: 'Sri Sathya Sai',
-      formationDetails: 'Proceedings of District Collector',
-      proceedingsNumber: 'D-Collector-Ref-2024',
-      gpExtent: '15.52 Sq Km',
-      panchayatSecretary: 'Ravindra Kumar P',
-      executiveOfficer: 'Ashok Kumar',
-      malePopulation: 12331,
-      femalePopulation: 12255,
-      population: 24586,
-      scPopulation: 1560,
-      stPopulation: 657,
-      totalAssessments: 7604,
-      auditStatus: '-',
-      apiicEstate37: '-',
-      apiicEstate04: '-',
-      apiicTotalAcres: '-',
-      savingsTarget: '-',
-      savingsAchievement: '-',
-      savingsPercentage: '-',
-      misappropriationCases: '-',
-      misappropriationAmount: '-',
-      recoveryAmount: '-',
-      fposInGp: '-',
-      sriNidhiLoansGranted: '-',
-      sriNidhiAmount: '-',
-      npa: '-',
-      pnpa: '-',
-      communityHallLocation: '-',
-      libraryLocation: '-',
-    },
-  });
+  // 6. Panchayat Details (AboutGP)
+  const gpDetails = {
+    gpName: 'Gorantla',
+    mandal: 'Gorantla',
+    district: 'Sri Sathya Sai',
+    formationDetails: 'Proceedings of District Collector',
+    proceedingsNumber: 'D-Collector-Ref-2024',
+    gpExtent: '15.52 Sq Km',
+    panchayatSecretary: 'Ravindra Kumar P',
+    executiveOfficer: 'Ashok Kumar',
+    malePopulation: 12331,
+    femalePopulation: 12255,
+    population: 24586,
+    scPopulation: 1560,
+    stPopulation: 657,
+    totalAssessments: 7604,
+    auditStatus: '-',
+    apiicEstate37: '-',
+    apiicEstate04: '-',
+    apiicTotalAcres: '-',
+    savingsTarget: '-',
+    savingsAchievement: '-',
+    savingsPercentage: '-',
+    misappropriationCases: '-',
+    misappropriationAmount: '-',
+    recoveryAmount: '-',
+    fposInGp: '-',
+    sriNidhiLoansGranted: '-',
+    sriNidhiAmount: '-',
+    npa: '-',
+    pnpa: '-',
+    communityHallLocation: '-',
+    libraryLocation: '-',
+  };
+  await upsertSingleRow(prisma.aboutGP, gpDetails);
+  console.log('Panchayat details (AboutGP) seeded.');
 
-  // Seed Officials & Sachivalayam Staff
-  await prisma.official.deleteMany({});
+  // 7. Seeding Officials & Sachivalayam Staff
   const officials = [
     {
       name: 'Srimati Kamala Bai',
@@ -256,18 +287,18 @@ async function main() {
       photo: 'Kamala_Bai.jpg',
       office: 'Mandal Parishad',
       responsibilities: 'Mandal Development',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
     {
       name: 'Guruswamy',
       nameTe: 'గురుస్వామి',
       designation: 'GPDO',
-      designationTe: 'జి.పి.డి.ఓ',
+      designationTe: 'జి.пи.డి.ఓ',
       phoneNumber: '-',
       photo: 'Guruswamy.jpg',
       office: 'Gram Panchayat',
       responsibilities: 'Panchayat Development',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
     {
       name: 'G. Sai Charan',
@@ -278,7 +309,7 @@ async function main() {
       photo: 'G_Sai_Charan.jpg',
       office: 'Gram Panchayat',
       responsibilities: 'Official Duties',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
     {
       name: 'Sai Sanjay',
@@ -289,18 +320,18 @@ async function main() {
       photo: 'Sai_Sanjay.jpg',
       office: 'Gram Panchayat',
       responsibilities: 'Official Duties',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
     {
       name: 'Srimati Y.Samatha',
       nameTe: 'శ్రీమతి వై. సమత',
       designation: 'District Panchayat Officer',
-      designationTe: 'జిల్లా పంచాయితీ అధికారి',
+      designationTe: 'జिल्లా పంచాయితీ అధికారి',
       phoneNumber: '-',
       photo: 'Y_Samatha.jpg',
       office: 'District Office',
       responsibilities: 'District Level Administration',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
     {
       name: 'Srimati B.Haseena Begum',
@@ -311,7 +342,7 @@ async function main() {
       photo: 'B_Haseena_Begum.png',
       office: 'Gram Panchayat',
       responsibilities: 'Official Duties',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
     {
       name: 'B.Sudhakar',
@@ -322,130 +353,123 @@ async function main() {
       photo: 'B_Sudhakar.png',
       office: 'Gram Panchayat',
       responsibilities: 'Official Duties',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
     },
-    { name: 'Smt Chandrakala', designation: 'Revenue Officer', phoneNumber: '9000044444', photo: null, office: 'Revenue Office', responsibilities: 'Cess and collections', status: 'ACTIVE' },
-    { name: 'Sri Lakshinarayana', designation: 'Revenue Officer', phoneNumber: '9000055555', photo: null, office: 'Revenue Office', responsibilities: 'Taxes & audits', status: 'ACTIVE' },
-    { name: 'ASWINI GERVI', designation: 'Sericulture Assistant', phoneNumber: '7815892900', photo: null, office: 'Sachivalayam 01', responsibilities: 'Sericulture management', status: 'ACTIVE' },
-    { name: 'VANITHA BAI MUDE', designation: 'Mahila Police', phoneNumber: '9666031163', photo: null, office: 'Sachivalayam 01', responsibilities: 'Anganwadi inspection, awareness, law & order', status: 'ACTIVE' },
-    { name: 'GOWTHAMI KIMAVATH', designation: 'Welfare Assistant', phoneNumber: '7993136103', photo: null, office: 'Sachivalayam 01', responsibilities: 'Pensions, social schemes, SHGs, school inspection', status: 'ACTIVE' },
-    { name: 'HARIKRISHNA CHANGALA', designation: 'Village Surveyor', phoneNumber: '996631270', photo: null, office: 'Sachivalayam 01', responsibilities: 'Survey and land records', status: 'ACTIVE' },
-    { name: 'ANANTHALA SWATHI', designation: 'Engineering Assistant', phoneNumber: '8328686429', photo: null, office: 'Sachivalayam 01', responsibilities: 'Buildings, CC roads, housing, RWS works', status: 'ACTIVE' }
+    { name: 'Smt Chandrakala', nameTe: 'శ్రీమతి చంద్రకళ', designation: 'Revenue Officer', designationTe: 'రెవెన్యూ అధికారి', phoneNumber: '9000044444', photo: null, office: 'Revenue Office', responsibilities: 'Cess and collections', status: 'ACTIVE' },
+    { name: 'Sri Lakshinarayana', nameTe: 'శ్రీ లక్ష్మీనారాయణ', designation: 'Revenue Officer', designationTe: 'రెవెన్యూ అధికారి', phoneNumber: '9000055555', photo: null, office: 'Revenue Office', responsibilities: 'Taxes & audits', status: 'ACTIVE' },
+    { name: 'ASWINI GERVI', nameTe: 'అశ్విని గెర్వి', designation: 'Sericulture Assistant', designationTe: 'పట్టుపరిశ్రమ సహాయకులు', phoneNumber: '7815892900', photo: null, office: 'Sachivalayam 01', responsibilities: 'Sericulture management', status: 'ACTIVE' },
+    { name: 'VANITHA BAI MUDE', nameTe: 'వనితా బాయి మూడే', designation: 'Mahila Police', designationTe: 'మహిళా పోలీస్', phoneNumber: '9666031163', photo: null, office: 'Sachivalayam 01', responsibilities: 'Anganwadi inspection, awareness, law & order', status: 'ACTIVE' },
+    { name: 'GOWTHAMI KIMAVATH', nameTe: 'గౌతమి కిమావత్', designation: 'Welfare Assistant', designationTe: 'సంక్షేమ సహాయకులు', phoneNumber: '7993136103', photo: null, office: 'Sachivalayam 01', responsibilities: 'Pensions, social schemes, SHGs, school inspection', status: 'ACTIVE' },
+    { name: 'HARIKRISHNA CHANGALA', nameTe: 'హరికృష్ణ చంగాల', designation: 'Village Surveyor', designationTe: 'గ్రామ సర్వేయర్', phoneNumber: '996631270', photo: null, office: 'Sachivalayam 01', responsibilities: 'Survey and land records', status: 'ACTIVE' },
+    { name: 'ANANTHALA SWATHI', nameTe: 'అనంతల స్వాతి', designation: 'Engineering Assistant', designationTe: 'ఇంజనీరింగ్ సహాయకులు', phoneNumber: '8328686429', photo: null, office: 'Sachivalayam 01', responsibilities: 'Buildings, CC roads, housing, RWS works', status: 'ACTIVE' },
   ];
+
   for (const off of officials) {
-    await prisma.official.create({ data: off });
+    await upsertByKey(prisma.official, 'name', off.name, off);
   }
+  console.log('Officials & Staff seeded.');
 
-  // Seed Water Details
-  await prisma.waterDetails.deleteMany({});
-  await prisma.waterDetails.create({
-    data: {
-      totalWaterSchemes: 25,
-      privateConnections: 2643,
-      publicConnections: 1500,
-      handPumps: 12,
-      privateTapFeeDemand: 1268640.0,
-      totalOHSRs: 4,
-      totalGLSRs: 9,
-      totalDirectPumping: 0,
-    },
-  });
+  // 8. Water Details
+  const waterStats = {
+    totalWaterSchemes: 25,
+    privateConnections: 2643,
+    publicConnections: 1500,
+    handPumps: 12,
+    privateTapFeeDemand: 1268640.0,
+    totalOHSRs: 4,
+    totalGLSRs: 9,
+    totalDirectPumping: 0,
+  };
+  await upsertSingleRow(prisma.waterDetails, waterStats);
 
-  // Seed OHSRs
-  await prisma.oHSR.deleteMany({});
+  // 9. OHSRs
   const ohsrs = [
-    { name: 'Sathya Sai', capacity: 1.00, pumpingCapacity: 10, location: 'Sathya Sai Colony', remarks: 'Functional' },
-    { name: 'Petrol Bank', capacity: 1.30, pumpingCapacity: 12, location: 'Main Road Petrol Bank', remarks: 'Fully operational' },
-    { name: 'SC Hostel', capacity: 0.80, pumpingCapacity: 8, location: 'SC Welfare Hostel', remarks: 'Serves welfare student campus' },
-    { name: 'MRC', capacity: 0.40, pumpingCapacity: 5, location: 'Mandal Resource Centre', remarks: 'Operational' },
+    { name: 'Sathya Sai', capacity: 1.0, pumpingCapacity: 10, location: 'Sathya Sai Colony', remarks: 'Functional' },
+    { name: 'Petrol Bank', capacity: 1.3, pumpingCapacity: 12, location: 'Main Road Petrol Bank', remarks: 'Fully operational' },
+    { name: 'SC Hostel', capacity: 0.8, pumpingCapacity: 8, location: 'SC Welfare Hostel', remarks: 'Serves welfare student campus' },
+    { name: 'MRC', capacity: 0.4, pumpingCapacity: 5, location: 'Mandal Resource Centre', remarks: 'Operational' },
   ];
   for (const o of ohsrs) {
-    await prisma.oHSR.create({ data: o });
+    await upsertByKey(prisma.oHSR, 'name', o.name, o);
   }
 
-  // Seed GLSRs
-  await prisma.gLSR.deleteMany({});
+  // 10. GLSRs
   const glsrs = [
-    { name: 'MRC', capacity: 1.50, pumpingCapacity: 15, location: 'Mandal Resource Centre', remarks: 'Major ground level buffer' },
-    { name: 'Chowdeswari Colony', capacity: 0.60, pumpingCapacity: 6, location: 'Chowdeswari Colony', remarks: 'Functional' },
-    { name: 'Anjaneswamy Colony', capacity: 0.40, pumpingCapacity: 4, location: 'Anjaneswamy Colony Temple Road', remarks: 'Functional' },
-    { name: 'Raja Reddy Mill Back Side', capacity: 0.40, pumpingCapacity: 4, location: 'Raja Reddy Mill Backside area', remarks: 'Functional' },
-    { name: 'Gummaiahgaripalli Upper', capacity: 0.60, pumpingCapacity: 6, location: 'Gummaiahgaripalli Upper Ward', remarks: 'Operational' },
-    { name: 'Gummaiahgaripalli Lower', capacity: 0.40, pumpingCapacity: 4, location: 'Gummaiahgaripalli Lower Ward', remarks: 'Operational' },
-    { name: 'Singireddypalli North', capacity: 0.60, pumpingCapacity: 6, location: 'Singireddypalli North', remarks: 'Operational' },
-    { name: 'Singireddypalli South', capacity: 0.40, pumpingCapacity: 4, location: 'Singireddypalli South', remarks: 'Operational' },
-    { name: 'Siragamvandlapalli', capacity: 0.40, pumpingCapacity: 4, location: 'Siragamvandlapalli center', remarks: 'Functional' },
+    { name: 'MRC', capacity: 1.5, pumpingCapacity: 15, location: 'Mandal Resource Centre', remarks: 'Major ground level buffer' },
+    { name: 'Chowdeswari Colony', capacity: 0.6, pumpingCapacity: 6, location: 'Chowdeswari Colony', remarks: 'Functional' },
+    { name: 'Anjaneswamy Colony', capacity: 0.4, pumpingCapacity: 4, location: 'Anjaneswamy Colony Temple Road', remarks: 'Functional' },
+    { name: 'Raja Reddy Mill Back Side', capacity: 0.4, pumpingCapacity: 4, location: 'Raja Reddy Mill Backside area', remarks: 'Functional' },
+    { name: 'Gummaiahgaripalli Upper', capacity: 0.6, pumpingCapacity: 6, location: 'Gummaiahgaripalli Upper Ward', remarks: 'Operational' },
+    { name: 'Gummaiahgaripalli Lower', capacity: 0.4, pumpingCapacity: 4, location: 'Gummaiahgaripalli Lower Ward', remarks: 'Operational' },
+    { name: 'Singireddypalli North', capacity: 0.6, pumpingCapacity: 6, location: 'Singireddypalli North', remarks: 'Operational' },
+    { name: 'Singireddypalli South', capacity: 0.4, pumpingCapacity: 4, location: 'Singireddypalli South', remarks: 'Operational' },
+    { name: 'Siragamvandlapalli', capacity: 0.4, pumpingCapacity: 4, location: 'Siragamvandlapalli center', remarks: 'Functional' },
   ];
   for (const g of glsrs) {
-    await prisma.gLSR.create({ data: g });
+    await upsertByKey(prisma.gLSR, 'name', g.name, g);
   }
 
-  // Seed Direct Pumping
-  await prisma.directPumping.deleteMany({});
-  await prisma.directPumping.create({
-    data: { pumpName: 'Borewell 1 (Submersible)', source: 'Groundwater Aquifer', capacity: 5.0, status: 'WORKING' },
-  });
+  // 11. Direct Pumping
+  const directPumps = [
+    { pumpName: 'Borewell 1 (Submersible)', source: 'Groundwater Aquifer', capacity: 5.0, status: 'WORKING' },
+  ];
+  for (const dp of directPumps) {
+    await upsertByKey(prisma.directPumping, 'pumpName', dp.pumpName, dp);
+  }
+  console.log('Water modules (Details, OHSRs, GLSRs, Direct Pumping) seeded.');
 
-  // Seed Street Light details
-  await prisma.streetLightDetails.deleteMany({});
-  await prisma.streetLightDetails.create({
-    data: {
-      totalPoles: 6000,
-      totalLEDs: 2500,
-      lightingStaff: 1,
-    },
-  });
+  // 12. Street Light Details & Assets
+  const streetLightStats = {
+    totalPoles: 6000,
+    totalLEDs: 2500,
+    lightingStaff: 1,
+  };
+  await upsertSingleRow(prisma.streetLightDetails, streetLightStats);
 
-  // Seed Street Light Assets
-  await prisma.streetLightAsset.deleteMany({});
   const slAssets = [
     { area: 'Gorantla Main Bazar', poleCount: 120, ledCount: 120, workingStatus: 'WORKING', remarks: 'Fully functional' },
     { area: 'Chowdeswari Colony', poleCount: 80, ledCount: 75, workingStatus: 'REPAIR_NEEDED', remarks: '5 LED bulbs need replacement' },
     { area: 'Singireddypalli Ward 3', poleCount: 95, ledCount: 95, workingStatus: 'WORKING', remarks: 'Solar battery serviced last month' },
   ];
   for (const s of slAssets) {
-    await prisma.streetLightAsset.create({ data: s });
+    await upsertByKey(prisma.streetLightAsset, 'area', s.area, s);
   }
+  console.log('Street Light modules seeded.');
 
-  // Seed Tax Revenue
-  await prisma.taxRevenue.deleteMany({});
-  await prisma.taxRevenue.create({
-    data: {
-      financialYear: '2025-2026',
-      houseTax: 3109889.0,
-      libraryCess: 249780.0,
-      waterTax: 621929.0,
-      lightingTax: 312348.0,
-      drainageTax: 467302.0,
-      sportsTax: 92723.0,
-      fireCess: 30488.0,
-      totalDemand: 4884459.0,
-      houseTaxCollection: 3109889.0,
-      collectionPercentage: 100.0,
-      nonTaxDemand: 0.0,
-      nonTaxCollection: 0.0,
-      pendingAmount: 0.0,
-      generalFund: 250000.0,
-      tfc: 0.0,
-      sfc: 0.0,
-      ffc: 0.0,
-      fifteenthFC: 1850000.0,
-      otherGrants: 0.0,
-    },
-  });
+  // 13. Tax Revenue (Seeded by Financial Year)
+  const taxStats = {
+    houseTax: 3109889.0,
+    libraryCess: 249780.0,
+    waterTax: 621929.0,
+    lightingTax: 312348.0,
+    drainageTax: 467302.0,
+    sportsTax: 92723.0,
+    fireCess: 30488.0,
+    totalDemand: 4884459.0,
+    houseTaxCollection: 3109889.0,
+    collectionPercentage: 100.0,
+    nonTaxDemand: 0.0,
+    nonTaxCollection: 0.0,
+    pendingAmount: 0.0,
+    generalFund: 250000.0,
+    tfc: 0.0,
+    sfc: 0.0,
+    ffc: 0.0,
+    fifteenthFC: 1850000.0,
+    otherGrants: 0.0,
+  };
+  await upsertByKey(prisma.taxRevenue, 'financialYear', '2025-2026', taxStats);
+  console.log('Tax Revenue seeded.');
 
-  // Seed Health Details & Staff
-  await prisma.healthDetails.deleteMany({});
-  await prisma.healthDetails.create({
-    data: {
-      hospitalName: 'Gorantla Area PHC',
-      healthCentre: 'Community Health Centre',
-      ashaWorkers: 18,
-      anms: 5,
-    },
-  });
+  // 14. Health Modules
+  const healthStats = {
+    hospitalName: 'Gorantla Area PHC',
+    healthCentre: 'Community Health Centre',
+    ashaWorkers: 18,
+    anms: 5,
+  };
+  await upsertSingleRow(prisma.healthDetails, healthStats);
 
-  await prisma.healthStaff.deleteMany({});
   const healthStaff = [
     { name: 'D. Nagalakshmi', designation: 'ASHA Worker', phone: '9440011111', area: 'Gorantla Ward 1', status: 'ACTIVE' },
     { name: 'E. Thripura', designation: 'ANM', phone: '9440022222', area: 'Gorantla Centre', status: 'ACTIVE' },
@@ -453,22 +477,22 @@ async function main() {
     { name: 'S.P. Rajyalakshmi', designation: 'ANM', phone: '9440044444', area: 'Gorantla Ward 2', status: 'ACTIVE' },
   ];
   for (const hs of healthStaff) {
-    await prisma.healthStaff.create({ data: hs });
+    await upsertByKey(prisma.healthStaff, 'name', hs.name, hs);
   }
+  console.log('Health modules seeded.');
 
-  // Seed Education / Schools
-  await prisma.school.deleteMany({});
+  // 15. Schools (Education)
   const schools = [
     { schoolName: 'Primary Govt School', type: 'GOVT', category: 'Primary', location: 'Gorantla Main', boys: 50, girls: 45, total: 95 },
     { schoolName: 'ZPHS Girls High School', type: 'GOVT', category: 'High School', location: 'Temple Road', boys: 0, girls: 150, total: 150 },
     { schoolName: 'Vignan Primary School', type: 'PRIVATE', category: 'Primary', location: 'Colony Street', boys: 90, girls: 97, total: 187 },
   ];
   for (const sch of schools) {
-    await prisma.school.create({ data: sch });
+    await upsertByKey(prisma.school, 'schoolName', sch.schoolName, sch);
   }
+  console.log('Schools seeded.');
 
-  // Seed Anganwadi Centres & Stats
-  await prisma.anganwadiCentre.deleteMany({});
+  // 16. Anganwadi Centres & Stats
   const anganwadis = [
     { centreName: 'Gorantla-1', location: 'Gorantla-1', boys: 51, girls: 43, total: 94 },
     { centreName: 'Gorantla-4', location: 'Gorantla-4', boys: 54, girls: 41, total: 95 },
@@ -477,44 +501,40 @@ async function main() {
     { centreName: 'Gorantla-6', location: 'Gorantla-6', boys: 40, girls: 54, total: 94 },
   ];
   for (const ang of anganwadis) {
-    await prisma.anganwadiCentre.create({ data: ang });
+    await upsertByKey(prisma.anganwadiCentre, 'centreName', ang.centreName, ang);
   }
 
-  await prisma.anganwadiStats.deleteMany({});
-  await prisma.anganwadiStats.create({
-    data: {
-      samChildren: 59,
-      mamChildren: 85,
-    },
-  });
+  const anganwadiStats = {
+    samChildren: 59,
+    mamChildren: 85,
+  };
+  await upsertSingleRow(prisma.anganwadiStats, anganwadiStats);
+  console.log('Anganwadi modules seeded.');
 
-  // Seed MGNREGS Details & Works
-  await prisma.mgnregsDetails.deleteMany({});
-  await prisma.mgnregsDetails.create({
-    data: {
-      jobCards: 2501,
-      activeJobCards: 1204,
-      works: 578,
-      estimateCost: 65045000,
-      gokulamSheds: 3,
-      sramikaSanghalu: 22,
-      completedGokulam: 3,
-      inProgressGokulam: 0,
-      notStartedGokulam: 0,
-    },
-  });
+  // 17. MGNREGS
+  const mgnregsStats = {
+    jobCards: 2501,
+    activeJobCards: 1204,
+    works: 578,
+    estimateCost: 65045000,
+    gokulamSheds: 3,
+    sramikaSanghalu: 22,
+    completedGokulam: 3,
+    inProgressGokulam: 0,
+    notStartedGokulam: 0,
+  };
+  await upsertSingleRow(prisma.mgnregsDetails, mgnregsStats);
 
-  await prisma.mgnregsWork.deleteMany({});
   const mgnregsWorks = [
     { workName: 'Gorantla Drainage Construction', village: 'Gorantla', budget: 150000.0, status: 'COMPLETED', remarks: 'Completed on schedule' },
     { workName: 'Singireddypalli Graveyard Leveling', village: 'Singireddypalli', budget: 85000.0, status: 'IN_PROGRESS', remarks: 'Work in progress' },
   ];
   for (const mw of mgnregsWorks) {
-    await prisma.mgnregsWork.create({ data: mw });
+    await upsertByKey(prisma.mgnregsWork, 'workName', mw.workName, mw);
   }
+  console.log('MGNREGS modules seeded.');
 
-  // Seed Pensions
-  await prisma.pensionCategory.deleteMany({});
+  // 18. Pensions (Category-wise)
   const pensions = [
     { category: 'OAP', beneficiaries: 1559, monthlyAmount: 3507750, remarks: 'Old Age Pension' },
     { category: 'Widow', beneficiaries: 731, monthlyAmount: 1644750, remarks: 'Widows support' },
@@ -538,70 +558,67 @@ async function main() {
     { category: 'Traditional Cobblers', beneficiaries: 14, monthlyAmount: 31500, remarks: 'Cobblers pension support' },
   ];
   for (const pen of pensions) {
-    await prisma.pensionCategory.create({ data: pen });
+    await upsertByKey(prisma.pensionCategory, 'category', pen.category, pen);
   }
+  console.log('Pension categories seeded.');
 
-  // Seed Agriculture Details
-  await prisma.agricultureStats.deleteMany({});
-  await prisma.agricultureStats.create({
-    data: {
-      cultivableLand: 2231.0,
-      rabiArea: 311.0,
-      landSown: 2012.0,
-      groundnutQuintals: 400.0,
-      polamBadies: 5,
-      samplesCollected: 40,
-      samplesAnalysed: 40,
-      soilCards: 40,
-      pmKisan: 1234,
-      amountPaid: 5400000.0,
-      cropInsuranceFarmers: 0,
-      heavyRainAffectedFarmers: 0,
-      heavyRainDamageArea: 0.0,
-      heavyRainDamageAmount: 0.0,
-    },
-  });
+  // 19. Agriculture Stats
+  const agriStats = {
+    cultivableLand: 2231.0,
+    rabiArea: 311.0,
+    landSown: 2012.0,
+    groundnutQuintals: 400.0,
+    polamBadies: 5,
+    samplesCollected: 40,
+    samplesAnalysed: 40,
+    soilCards: 40,
+    pmKisan: 1234,
+    amountPaid: 5400000.0,
+    cropInsuranceFarmers: 0,
+    heavyRainAffectedFarmers: 0,
+    heavyRainDamageArea: 0.0,
+    heavyRainDamageAmount: 0.0,
+  };
+  await upsertSingleRow(prisma.agricultureStats, agriStats);
+  console.log('Agriculture stats seeded.');
 
-  // Seed Horticulture
-  await prisma.horticultureStats.deleteMany({});
-  await prisma.horticultureStats.create({
-    data: {
-      area: 209.0,
-      production: 350.0,
-      midhPhysical: 0,
-      midhTotal: 0.0,
-      rkvmPhysical: 0,
-      rkvmTotal: 0.0,
-    },
-  });
+  // 20. Horticulture Stats
+  const hortStats = {
+    area: 209.0,
+    production: 350.0,
+    midhPhysical: 0,
+    midhTotal: 0.0,
+    rkvmPhysical: 0,
+    rkvmTotal: 0.0,
+  };
+  await upsertSingleRow(prisma.horticultureStats, hortStats);
+  console.log('Horticulture stats seeded.');
 
-  // Seed Animal Husbandry
-  await prisma.animalHusbandryStats.deleteMany({});
-  await prisma.animalHusbandryStats.create({
-    data: {
-      cattle: 1910,
-      buffaloes: 166,
-      sheep: 4753,
-      goats: 546,
-      vaccination: 7375, // Achievement
-      insurance: 0,
-      projects: 0,
-      subsidy: 0,
-      fodderDev: 0,
-      targetFodder: 0,
-      pashubheemaInsured: 0,
-      treatedSanchara: 0,
-      gokulamInaugurated: 3,
-      gokulamSanctioned: 0,
-      nlmSanctioned: 0,
-      nlmCompleted: 0,
-      nlmInProgress: 0,
-      nlmSubsidy: 0,
-    },
-  });
+  // 21. Animal Husbandry Stats
+  const ahStats = {
+    cattle: 1910,
+    buffaloes: 166,
+    sheep: 4753,
+    goats: 546,
+    vaccination: 7375,
+    insurance: 0,
+    projects: 0,
+    subsidy: 0,
+    fodderDev: 0,
+    targetFodder: 0,
+    pashubheemaInsured: 0,
+    treatedSanchara: 0,
+    gokulamInaugurated: 3,
+    gokulamSanctioned: 0,
+    nlmSanctioned: 0,
+    nlmCompleted: 0,
+    nlmInProgress: 0,
+    nlmSubsidy: 0,
+  };
+  await upsertSingleRow(prisma.animalHusbandryStats, ahStats);
+  console.log('Animal Husbandry stats seeded.');
 
-  // Seed VO & SHG
-  await prisma.voGroup.deleteMany({});
+  // 22. VOs & SHG
   const voGroups = [
     { voName: 'Allamalik', village: 'Gorantla', members: 45, president: 'Saraswathi', phone: '9440111111', status: 'ACTIVE' },
     { voName: 'Chaithanya', village: 'Gorantla', members: 35, president: 'Suseela', phone: '9440122222', status: 'ACTIVE' },
@@ -610,42 +627,41 @@ async function main() {
     { voName: 'Gandhiji', village: 'Gorantla', members: 45, president: 'Anitha Lakshmi', phone: '9440155555', status: 'ACTIVE' },
   ];
   for (const vo of voGroups) {
-    await prisma.voGroup.create({ data: vo });
+    await upsertByKey(prisma.voGroup, 'voName', vo.voName, vo);
   }
 
-  await prisma.shgStats.deleteMany({});
-  await prisma.shgStats.create({
-    data: {
-      totalSHGs: 555,
-      activeSHGs: 555,
-      loans: 15000000.0,
-      savings: 5000000.0,
-      recovery: 98.5,
-      pmjby: 120,
-      pmsby: 150,
-      unnati: 85,
-      nutriGardens: 250,
-      sriNidhi: 450000.0,
-    },
-  });
+  const shgStats = {
+    totalSHGs: 555,
+    activeSHGs: 555,
+    loans: 15000000.0,
+    savings: 5000000.0,
+    recovery: 98.5,
+    pmjby: 120,
+    pmsby: 150,
+    unnati: 85,
+    nutriGardens: 250,
+    sriNidhi: 450000.0,
+  };
+  await upsertSingleRow(prisma.shgStats, shgStats);
+  console.log('VO Groups & SHG stats seeded.');
 
-  // Seed Community Assets
-  await prisma.communityAssetItem.deleteMany({});
+  // 23. Community Assets
   const commAssets = [
     { name: 'Community Hall', location: 'Gorantla Center', condition: 'EXCELLENT', remarks: 'Fully operational' },
     { name: 'Panchayat Library', location: 'Main Bazar', condition: 'GOOD', remarks: 'Equipped with digital computers and internet' },
     { name: 'Solid Waste Management SWPC Shed', location: 'Gorantla Outskirts', condition: 'GOOD', remarks: 'SWPC Shed active' },
   ];
   for (const ca of commAssets) {
-    await prisma.communityAssetItem.create({ data: ca });
+    await upsertByKey(prisma.communityAssetItem, 'name', ca.name, ca);
   }
+  console.log('Community Assets seeded.');
 
-  console.log('Homepage sections and default data seeded successfully.');
+  console.log('Database seeding successfully completed!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Error during database seed execution:', e);
     process.exit(1);
   })
   .finally(async () => {

@@ -90,7 +90,7 @@ const TicketActionScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
       }
 
       showSnackbar('Your status update has been successfully submitted.', 'success');
-      navigation.navigate('AssignedTickets');
+      navigation.navigate('EmployeeTabs', { screen: 'AssignedTickets' });
     } catch (err: any) {
       showSnackbar(err.message, 'error');
     } finally {
