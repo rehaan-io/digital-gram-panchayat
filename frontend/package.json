@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/config": "~56.0.13",
+    "@expo/json-file": "^10.2.0",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-community/datetimepicker": "9.1.0",
     "@react-navigation/bottom-tabs": "^7.18.3",
@@ -19,12 +21,14 @@
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "^4.25.2"
+    "react-native-screens": "~4.26.0"
   },
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["expo-av"]
+        "exclude": [
+          "expo-av"
+        ]
       }
     }
   },
