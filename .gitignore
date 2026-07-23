@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Local environment files (contains secrets/API keys)
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+
+# Backup files (like those created during development)
+*.bak
+*.backup
+backend/src/routes/*.bak
+frontend/src/screens/**/*.bak
+frontend/src/context/**/*.bak
+
+# Expo & Mobile native build directories
+frontend/.expo/
+frontend/dist/
+frontend/web-build/
+frontend/expo-env.d.ts
+frontend/ios/
+frontend/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Metro Bundler cache
+.metro-health-check*
+
+# Logs & Debugging files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+backend/logs/
+backend/uploads/
+
+
+# Build & TypeScript artifacts
+dist/
+build/
+backend/dist/
+*.tsbuildinfo
+
+# OS-specific system files
+.DS_Store
+Thumbs.db

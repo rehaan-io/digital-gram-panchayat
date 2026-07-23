@@ -1,0 +1,477 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CITIZEN
+  EMPLOYEE
+  ADMIN
+}
+
+enum TicketStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  ASSIGNED
+  ON_WAY
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+}
+
+model User {
+  id                String             @id @default(uuid())
+  username          String             @unique
+  email             String             @unique
+  phone             String
+  password          String
+  fullName          String
+  role              Role               @default(CITIZEN)
+  isVerified        Boolean            @default(false)
+  verificationToken String?
+  fcmToken          String?
+  photo             String?            // Optional user profile picture url
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Relations
+  employeeProfile   Employee?
+  ticketsCreated    Ticket[]           @relation("CitizenTickets")
+  notifications     Notification[]
+  announcements     Announcement[]     @relation("AdminAnnouncements")
+  timelineActions   TicketTimeline[]   @relation("TimelineActor")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Employee {
+  id                String             @id @default(uuid())
+  employeeId        String             @unique // E.g., EMP-2026-0001
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department        String?
+  photo             String?            // Optional staff photo URL
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  assignedTickets   Ticket[]           @relation("EmployeeTickets")
+  leaves            Leave[]
+}
+
+model Leave {
+  id                String             @id @default(uuid())
+  employeeId        String
+  employee          Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDate         DateTime
+  endDate           DateTime
+  reason            String             @db.Text
+  status            LeaveStatus        @default(PENDING)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Ticket {
+  id                String             @id @default(uuid())
+  ticketId          String             @unique // E.g., TKT-171829
+  citizenId         String
+  citizen           User               @relation("CitizenTickets", fields: [citizenId], references: [id], onDelete: Cascade)
+  category          String             // Road, Street Light, Garbage, Water Supply, Drainage, Hygiene, Pest Control, Electricity, Others
+  title             String
+  description       String
+  location          String
+  alternatePhone    String?
+  issueImage        String?            // File path or URL
+  completionImage   String?            // File path or URL
+  status            TicketStatus       @default(PENDING)
+  rejectReason      String?
+  remarks           String?
+  expectedCompletion DateTime?
+  employeeId        String?
+  assignedEmployee  Employee?          @relation("EmployeeTickets", fields: [employeeId], references: [id], onDelete: SetNull)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedByCitizen  Boolean            @default(false)
+
+  // Relations
+  timeline          TicketTimeline[]
+  notifications     Notification[]     @relation("TicketNotifications")
+}
+
+model TicketTimeline {
+  id                 String             @id @default(uuid())
+  ticketId           String
+  ticket             Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  status             TicketStatus
+  remarks            String?
+  expectedCompletion DateTime?
+  actorId            String
+  actor              User               @relation("TimelineActor", fields: [actorId], references: [id])
+  createdAt          DateTime           @default(now())
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  titleTe   String?
+  content   String   @db.Text
+  contentTe String?  @db.Text
+  adminId   String
+  admin     User     @relation("AdminAnnouncements", fields: [adminId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticketId  String?
+  ticket    Ticket?  @relation("TicketNotifications", fields: [ticketId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model HomepageSection {
+  id        String   @id @default(uuid())
+  key       String   @unique // E.g., about, water_supply, street_lights, education, health, agriculture, welfare_schemes, staff, announcements, emergency_contacts, pensions, anganwadi, mgnregs, horticulture, animal_husbandry, shg_vo, community_assets
+  title     String
+  titleTe   String?
+  content   String   @db.Text
+  contentTe String?  @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model AboutGP {
+  id                 String   @id @default(uuid())
+  gpName             String
+  mandal             String
+  district           String
+  formationDetails   String
+  proceedingsNumber  String
+  gpExtent           String
+  panchayatSecretary String
+  executiveOfficer   String
+  malePopulation     Int
+  femalePopulation   Int
+  population         Int      // Male + Female
+  scPopulation       Int
+  stPopulation       Int
+  totalAssessments   Int
+  auditStatus        String
+  apiicEstate37      String   @default("-")
+  apiicEstate04      String   @default("-")
+  apiicTotalAcres    String   @default("-")
+  savingsTarget      String   @default("-")
+  savingsAchievement String   @default("-")
+  savingsPercentage  String   @default("-")
+  misappropriationCases String @default("-")
+  misappropriationAmount String @default("-")
+  recoveryAmount     String   @default("-")
+  fposInGp           String   @default("-")
+  sriNidhiLoansGranted String @default("-")
+  sriNidhiAmount     String   @default("-")
+  npa                String   @default("-")
+  pnpa               String   @default("-")
+  communityHallLocation String @default("-")
+  libraryLocation    String   @default("-")
+  updatedAt          DateTime @updatedAt
+}
+
+model CustomSectionField {
+  id         String   @id @default(uuid())
+  sectionKey String
+  fieldName  String
+  fieldValue String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Official {
+  id              String   @id @default(uuid())
+  name            String
+  nameTe          String?
+  designation     String
+  designationTe   String?
+  phoneNumber     String
+  office          String
+  responsibilities String
+  photo           String?
+  status          String   // e.g., ACTIVE, INACTIVE
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WaterDetails {
+  id                 String   @id @default(uuid())
+  totalWaterSchemes  Int
+  privateConnections Int
+  publicConnections  Int
+  handPumps          Int
+  privateTapFeeDemand Float
+  totalOHSRs         Int
+  totalGLSRs         Int
+  totalDirectPumping Int
+  updatedAt          DateTime @updatedAt
+}
+
+model OHSR {
+  id              String   @id @default(uuid())
+  name            String
+  capacity        Float    // In Lakh Lts
+  pumpingCapacity Float?   // In HP or Lts/hr
+  location        String
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model GLSR {
+  id              String   @id @default(uuid())
+  name            String
+  capacity        Float    // In Lakh Lts
+  pumpingCapacity Float?
+  location        String
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DirectPumping {
+  id              String   @id @default(uuid())
+  pumpName        String
+  source          String
+  capacity        Float
+  status          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model StreetLightDetails {
+  id             String   @id @default(uuid())
+  totalPoles     Int
+  totalLEDs      Int
+  lightingStaff  Int
+  updatedAt      DateTime @updatedAt
+}
+
+model StreetLightAsset {
+  id              String   @id @default(uuid())
+  area            String
+  poleCount       Int
+  ledCount        Int
+  workingStatus   String
+  lastMaintenance DateTime?
+  remarks         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TaxRevenue {
+  id                 String   @id @default(uuid())
+  financialYear      String
+  houseTax           Float
+  libraryCess        Float
+  waterTax           Float
+  lightingTax        Float
+  drainageTax        Float
+  sportsTax          Float
+  fireCess           Float
+  totalDemand        Float    // houseTax + libraryCess + waterTax + lightingTax + drainageTax + sportsTax + fireCess
+  houseTaxCollection Float
+  collectionPercentage Float  // (houseTaxCollection / houseTax) * 100
+  nonTaxDemand       Float
+  nonTaxCollection   Float
+  pendingAmount      Float    // (totalDemand - houseTaxCollection)
+  generalFund        Float
+  tfc                Float
+  sfc                Float
+  ffc                Float
+  fifteenthFC        Float    // 15th Finance Commission
+  otherGrants        Float
+  updatedAt          DateTime @updatedAt
+}
+
+model HealthDetails {
+  id             String   @id @default(uuid())
+  hospitalName   String
+  healthCentre   String
+  ashaWorkers    Int
+  anms           Int
+  updatedAt      DateTime @updatedAt
+}
+
+model HealthStaff {
+  id          String   @id @default(uuid())
+  name        String
+  designation String
+  phone       String
+  area        String
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model School {
+  id          String   @id @default(uuid())
+  schoolName  String
+  type        String   // GOVT, PRIVATE
+  category    String   // Primary, Upper Primary, High School, Junior College, Degree College
+  location    String
+  boys        Int
+  girls       Int
+  total       Int      // boys + girls
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AnganwadiCentre {
+  id         String   @id @default(uuid())
+  centreName String
+  location   String
+  boys       Int
+  girls      Int
+  total      Int      // boys + girls
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AnganwadiStats {
+  id          String   @id @default(uuid())
+  samChildren Int
+  mamChildren Int
+  updatedAt   DateTime @updatedAt
+}
+
+model MgnregsDetails {
+  id             String   @id @default(uuid())
+  jobCards       Int
+  activeJobCards Int
+  works          Int
+  estimateCost   Float
+  gokulamSheds   Int
+  sramikaSanghalu Int
+  completedGokulam Int
+  inProgressGokulam Int
+  notStartedGokulam Int
+  updatedAt      DateTime @updatedAt
+}
+
+model MgnregsWork {
+  id        String   @id @default(uuid())
+  workName  String
+  village   String
+  budget    Float
+  status    String
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PensionCategory {
+  id            String   @id @default(uuid())
+  category      String   // OAP, Widow, Disabled, Weavers, etc.
+  beneficiaries Int
+  monthlyAmount Float
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AgricultureStats {
+  id                String   @id @default(uuid())
+  cultivableLand    Float
+  rabiArea          Float
+  landSown          Float
+  groundnutQuintals Float
+  polamBadies       Int
+  samplesCollected  Int
+  samplesAnalysed   Int
+  soilCards         Int
+  pmKisan           Int
+  amountPaid        Float
+  updatedAt         DateTime @updatedAt
+}
+
+model HorticultureStats {
+  id             String   @id @default(uuid())
+  area           Float
+  production     Float
+  midhPhysical   Int
+  midhTotal      Float
+  rkvmPhysical   Int
+  rkvmTotal      Float
+  updatedAt      DateTime @updatedAt
+}
+
+model AnimalHusbandryStats {
+  id             String   @id @default(uuid())
+  cattle         Int
+  buffaloes      Int
+  sheep          Int
+  goats          Int
+  vaccination    Float
+  insurance      Float
+  projects       Float
+  subsidy        Float
+  fodderDev      Float
+  targetFodder   Float
+  pashubheemaInsured Int
+  treatedSanchara    Int
+  gokulamInaugurated Int
+  gokulamSanctioned  Int
+  nlmSanctioned  Int
+  nlmCompleted   Int
+  nlmInProgress  Int
+  nlmSubsidy     Float
+  updatedAt      DateTime @updatedAt
+}
+
+model VoGroup {
+  id        String   @id @default(uuid())
+  voName    String
+  village   String
+  members   Int
+  president String
+  phone     String
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ShgStats {
+  id           String   @id @default(uuid())
+  totalSHGs    Int
+  activeSHGs   Int
+  loans        Float
+  savings      Float
+  recovery     Float
+  pmjby        Int
+  pmsby        Int
+  unnati       Int
+  nutriGardens Int
+  sriNidhi     Float
+  updatedAt    DateTime @updatedAt
+}
+
+model CommunityAssetItem {
+  id        String   @id @default(uuid())
+  name      String
+  location  String
+  condition String
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
