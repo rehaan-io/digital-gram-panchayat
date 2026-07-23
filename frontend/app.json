@@ -23,7 +23,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class expo.modules.kotlin.** { *; }\n-keepclassmembers class expo.modules.kotlin.** { *; }\n-keep class expo.modules.kotlin.types.LazyKType { *; }"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
