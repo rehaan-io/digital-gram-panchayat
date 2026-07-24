@@ -6,6 +6,8 @@ import Constants from 'expo-constants';
 import { useAudioPlayer } from 'expo-audio';
 import { useAuth, API_BASE_URL } from './AuthContext';
 import { useSnackbar } from './SnackbarContext';
+import { useSocket } from './SocketContext';
+import * as RootNavigation from '../navigation/RootNavigation';
 
 export interface NotificationItem {
   id: string;
@@ -204,26 +206,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Trigger push registration
     registerForPushNotifications();
 
-    // Listen for foreground notifications
+    // Listen for foreground notifications (via Expo push, if any)
     const notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Foreground notification received:', notification);
-      
+      console.log('Foreground notification received (Expo):', notification);
       // Play foreground sound!
       playForegroundSound();
-
       // Show in-app banner popup
       const { title, body } = notification.request.content;
       if (title || body) {
         showSnackbar(`${title || 'Notification'}: ${body || ''}`, 'info');
       }
-
       // Refresh list
       fetchNotifications();
     });
 
-    // Listen for notifications clicked/tapped (background/foreground)
+    // Listen for notifications clicked/tapped (background/foreground deep linking!)
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('Notification tapped/responded:', response);
+      const data = response.notification.request.content.data;
+      if (data && data.ticketId) {
+        console.log('Navigating to TicketDetail for ticketId:', data.ticketId);
+        RootNavigation.navigate('TicketDetail', { ticketId: data.ticketId });
+      }
     });
 
     return () => {
@@ -241,67 +245,54 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [token, fetchNotifications]);
 
-  // Setup WebSocket connection for real-time foreground updates
+  const { socket, isConnected } = useSocket();
+
+  // Missed Event Recovery (Sync state on socket reconnect)
   useEffect(() => {
-    if (!token) return;
+    if (isConnected) {
+      console.log('🔄 Socket.IO reconnected, syncing notifications feed...');
+      fetchNotifications();
+    }
+  }, [isConnected, fetchNotifications]);
 
-    // Convert http/https REST base url to ws/wss dynamic endpoint
-    const wsUrl = API_BASE_URL
-      .replace(/^http/, 'ws')
-      .replace(/\/api$/, '') + `/?token=${token}`;
+  // Listen for notification updates via Socket.IO
+  useEffect(() => {
+    if (!socket) return;
 
-    console.log('🔌 Connecting to WebSocket:', wsUrl.replace(token, 'REDACTED'));
+    const handleNotificationCreated = (notification: any) => {
+      console.log('📩 Socket.IO notification_created:', notification);
+      
+      // Play foreground sound!
+      playForegroundSound();
 
-    let socket: WebSocket | null = new WebSocket(wsUrl);
+      // Show in-app banner toast/snackbar
+      showSnackbar(`${notification.title}: ${notification.message}`, 'info');
 
-    socket.onopen = () => {
-      console.log('🟢 WebSocket connection established.');
+      // Refresh the notifications feed (unreadCount / list)
+      fetchNotifications();
     };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('📩 WebSocket message received:', data);
+    const handleAnnouncementBroadcast = (announcement: any) => {
+      console.log('📩 Socket.IO announcement_broadcast:', announcement);
+      
+      // Play foreground sound!
+      playForegroundSound();
 
-        if (data.event === 'notification_created') {
-          // Play foreground sound!
-          playForegroundSound();
+      // Show announcement alert
+      showSnackbar(`New Announcement: ${announcement.title}`, 'success');
 
-          // Show in-app banner toast/snackbar
-          showSnackbar(`${data.payload.title}: ${data.payload.message}`, 'info');
-
-          // Refresh the notifications feed
-          fetchNotifications();
-        } else if (data.event === 'announcement_broadcast') {
-          // Play foreground sound!
-          playForegroundSound();
-
-          // Show announcement alert
-          showSnackbar(`New Announcement: ${data.payload.title}`, 'success');
-
-          // Refresh list
-          fetchNotifications();
-        }
-      } catch (err) {
-        console.error('Failed to parse WebSocket message frame:', err);
-      }
+      // Refresh list
+      fetchNotifications();
     };
 
-    socket.onerror = (error) => {
-      console.error('❌ WebSocket error occurred:', error);
-    };
-
-    socket.onclose = (event) => {
-      console.log('❌ WebSocket connection closed:', event.code, event.reason);
-    };
+    socket.on('notification_created', handleNotificationCreated);
+    socket.on('announcement_broadcast', handleAnnouncementBroadcast);
 
     return () => {
-      if (socket) {
-        socket.close();
-        socket = null;
-      }
+      socket.off('notification_created', handleNotificationCreated);
+      socket.off('announcement_broadcast', handleAnnouncementBroadcast);
     };
-  }, [token, fetchNotifications, playForegroundSound, showSnackbar]);
+  }, [socket, fetchNotifications, playForegroundSound, showSnackbar]);
 
   const safeNotifications = Array.isArray(notifications) ? notifications : [];
   const unreadCount = safeNotifications.filter((n) => !n.isRead).length;

@@ -1,89 +1,69 @@
-import { IncomingMessage } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
 
-interface AuthenticatedWebSocket extends WebSocket {
+interface AuthenticatedSocket extends Socket {
   userId?: string;
-  isAlive?: boolean;
+  userRole?: string;
 }
 
 export class WebSocketService {
-  private static wss: WebSocketServer | null = null;
-  private static userSockets = new Map<string, Set<AuthenticatedWebSocket>>();
+  private static io: SocketIOServer | null = null;
 
   static init(server: any) {
-    this.wss = new WebSocketServer({ server });
+    this.io = new SocketIOServer(server, {
+      cors: {
+        origin: '*', // Allow all origins for dev/prod compatibility
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+      },
+      transports: ['websocket'], // Use WebSocket transport for React Native stability
+    });
 
-    this.wss.on('connection', (ws: AuthenticatedWebSocket, req: IncomingMessage) => {
-      ws.isAlive = true;
-
-      // Extract token from query params: /?token=XYZ
-      const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-      const token = url.searchParams.get('token');
+    // Socket.IO authentication middleware
+    this.io.use((socket: AuthenticatedSocket, next) => {
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
 
       if (!token) {
-        console.warn('❌ WebSocket connection rejected: Missing auth token');
-        ws.close(4001, 'Unauthorized: Missing Token');
-        return;
+        console.warn('❌ Socket.IO connection rejected: Missing auth token');
+        return next(new Error('Authentication error: Missing token'));
       }
 
       try {
         const decoded = jwt.verify(
           token,
           process.env.JWT_SECRET || 'gram_panchayat_super_secure_secret_key_2026_redist'
-        ) as { id: string };
-        
-        ws.userId = decoded.id;
-        
-        // Add to tracking map
-        if (!this.userSockets.has(decoded.id)) {
-          this.userSockets.set(decoded.id, new Set());
-        }
-        this.userSockets.get(decoded.id)!.add(ws);
-        console.log(`🔌 WebSocket connected for user: ${decoded.id}`);
+        ) as { id: string; role: string };
 
+        socket.userId = decoded.id;
+        socket.userRole = decoded.role;
+        next();
       } catch (err) {
-        console.warn('❌ WebSocket connection rejected: Invalid auth token');
-        ws.close(4002, 'Unauthorized: Invalid Token');
-        return;
+        console.warn('❌ Socket.IO connection rejected: Invalid auth token');
+        return next(new Error('Authentication error: Invalid token'));
       }
-
-      ws.on('pong', () => {
-        ws.isAlive = true;
-      });
-
-      ws.on('close', () => {
-        if (ws.userId) {
-          const userSet = this.userSockets.get(ws.userId);
-          if (userSet) {
-            userSet.delete(ws);
-            if (userSet.size === 0) {
-              this.userSockets.delete(ws.userId);
-            }
-          }
-          console.log(`❌ WebSocket closed for user: ${ws.userId}`);
-        }
-      });
-
-      ws.on('error', (err) => {
-        console.error(`WebSocket error for user ${ws.userId}:`, err);
-      });
     });
 
-    // Setup ping interval to keep connections alive and clean up dead sockets
-    const interval = setInterval(() => {
-      this.wss?.clients.forEach((ws: AuthenticatedWebSocket) => {
-        if (ws.isAlive === false) {
-          console.log(`🧹 Terminating inactive WebSocket connection for user: ${ws.userId}`);
-          return ws.terminate();
-        }
-        ws.isAlive = false;
-        ws.ping();
-      });
-    }, 30000);
+    this.io.on('connection', (socket: AuthenticatedSocket) => {
+      if (!socket.userId || !socket.userRole) return;
 
-    this.wss.on('close', () => {
-      clearInterval(interval);
+      const userId = socket.userId;
+      const role = socket.userRole;
+
+      // 1. Join user-specific room: user_{userId}
+      socket.join(`user_${userId}`);
+      console.log(`🔌 Socket.IO: User ${userId} joined room user_${userId}`);
+
+      // 2. Join role-specific rooms
+      if (role === 'ADMIN') {
+        socket.join('admin_room');
+        console.log(`🔌 Socket.IO: Admin ${userId} joined room admin_room`);
+      } else if (role === 'EMPLOYEE') {
+        socket.join('employee_room');
+        console.log(`🔌 Socket.IO: Employee ${userId} joined room employee_room`);
+      }
+
+      socket.on('disconnect', () => {
+        console.log(`❌ Socket.IO: User ${userId} disconnected`);
+      });
     });
   }
 
@@ -91,15 +71,8 @@ export class WebSocketService {
    * Sends a real-time event to a specific user if they are online.
    */
   static sendToUser(userId: string, event: string, payload: any) {
-    const userSet = this.userSockets.get(userId);
-    if (!userSet) return false;
-
-    const data = JSON.stringify({ event, payload });
-    userSet.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
-    });
+    if (!this.io) return false;
+    this.io.to(`user_${userId}`).emit(event, payload);
     return true;
   }
 
@@ -107,13 +80,15 @@ export class WebSocketService {
    * Broadcasts a real-time event to all connected clients.
    */
   static broadcast(event: string, payload: any) {
-    if (!this.wss) return;
+    if (!this.io) return;
+    this.io.emit(event, payload);
+  }
 
-    const data = JSON.stringify({ event, payload });
-    this.wss.clients.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
-      }
-    });
+  /**
+   * Sends a real-time event to a specific room.
+   */
+  static sendToRoom(room: string, event: string, payload: any) {
+    if (!this.io) return;
+    this.io.to(room).emit(event, payload);
   }
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert, RefreshControl, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE_URL } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { COLORS, globalStyles } from '../../styles/theme';
 
@@ -80,9 +81,46 @@ const ManageTicketsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchTickets();
   }, [selectedStatus, selectedCategory]);
+
+  // Sync / Missed Event Recovery
+  useEffect(() => {
+    if (isConnected) {
+      fetchTickets();
+    }
+  }, [isConnected]);
+
+  // Real-time socket event subscription
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTicketEvent = (data: any) => {
+      console.log('🔄 Real-time ticket event received in ManageTicketsScreen:', data);
+      fetchTickets();
+    };
+
+    socket.on('ticket_created', handleTicketEvent);
+    socket.on('ticket_assigned', handleTicketEvent);
+    socket.on('ticket_updated', handleTicketEvent);
+    socket.on('ticket_approved', handleTicketEvent);
+    socket.on('ticket_declined', handleTicketEvent);
+    socket.on('ticket_in_progress', handleTicketEvent);
+    socket.on('ticket_completed', handleTicketEvent);
+
+    return () => {
+      socket.off('ticket_created', handleTicketEvent);
+      socket.off('ticket_assigned', handleTicketEvent);
+      socket.off('ticket_updated', handleTicketEvent);
+      socket.off('ticket_approved', handleTicketEvent);
+      socket.off('ticket_declined', handleTicketEvent);
+      socket.off('ticket_in_progress', handleTicketEvent);
+      socket.off('ticket_completed', handleTicketEvent);
+    };
+  }, [socket]);
 
   const handleSearchSubmit = () => {
     setIsLoading(true);

@@ -4,6 +4,7 @@ import { authenticateJWT, AuthenticatedRequest } from '../middleware/auth.middle
 import { upload, compressImage } from '../middleware/upload.middleware';
 import { NotificationService } from '../services/notification.service';
 import cloudinary from '../config/cloudinary';
+import { WebSocketService } from '../services/websocket.service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -112,6 +113,10 @@ router.post(
         `A new complaint in category "${category}" has been raised by ${req.user.username} (${ticketId}).`,
         ticket.id
       );
+
+      // Emit ticket_created event to the Citizen and Admins
+      WebSocketService.sendToUser(req.user.id, 'ticket_created', ticket);
+      WebSocketService.sendToRoom('admin_room', 'ticket_created', ticket);
 
       return res.status(201).json({
         message: 'Ticket generated successfully.',
@@ -422,6 +427,24 @@ router.patch(
         });
       }
 
+      // Emit specific status socket events to relevant rooms
+      const targetRoomList = [
+        `user_${ticket.citizenId}`,
+        'admin_room',
+        ...(updatedTicket.employeeId ? [`user_${updatedTicket.employeeId}`] : [])
+      ];
+
+      let statusEvent = 'ticket_updated';
+      if (targetStatus === 'ACCEPTED') statusEvent = 'ticket_approved';
+      else if (targetStatus === 'REJECTED') statusEvent = 'ticket_declined';
+      else if (targetStatus === 'ON_WAY' || targetStatus === 'IN_PROGRESS') statusEvent = 'ticket_in_progress';
+      else if (targetStatus === 'COMPLETED') statusEvent = 'ticket_completed';
+
+      targetRoomList.forEach((room) => {
+        WebSocketService.sendToRoom(room, statusEvent, updatedTicket);
+        WebSocketService.sendToRoom(room, 'ticket_updated', updatedTicket);
+      });
+
       return res.status(200).json({
         message: `Ticket status successfully updated to ${targetStatus}`,
         ticket: updatedTicket,
@@ -510,6 +533,15 @@ router.patch('/:id/assign', authenticateJWT, async (req: AuthenticatedRequest, r
       ticketId: id,
     });
 
+    // Emit ticket_assigned and ticket_updated events
+    WebSocketService.sendToUser(employee.userId, 'ticket_assigned', updatedTicket);
+    WebSocketService.sendToUser(ticket.citizenId, 'ticket_assigned', updatedTicket);
+    WebSocketService.sendToRoom('admin_room', 'ticket_assigned', updatedTicket);
+
+    WebSocketService.sendToUser(employee.userId, 'ticket_updated', updatedTicket);
+    WebSocketService.sendToUser(ticket.citizenId, 'ticket_updated', updatedTicket);
+    WebSocketService.sendToRoom('admin_room', 'ticket_updated', updatedTicket);
+
     return res.status(200).json({
       message: 'Ticket successfully assigned.',
       ticket: updatedTicket,
@@ -590,6 +622,16 @@ router.patch('/:id/update-details', authenticateJWT, async (req: AuthenticatedRe
         }
       }
     }
+
+    // Emit ticket_updated socket event
+    const updateTargetRooms = [
+      `user_${ticket.citizenId}`,
+      'admin_room',
+      ...(updatedTicket.employeeId ? [`user_${updatedTicket.employeeId}`] : [])
+    ];
+    updateTargetRooms.forEach((room) => {
+      WebSocketService.sendToRoom(room, 'ticket_updated', updatedTicket);
+    });
 
     return res.status(200).json({
       message: 'Ticket details updated successfully.',

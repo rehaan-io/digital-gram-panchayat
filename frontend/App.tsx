@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { navigationRef } from './src/navigation/RootNavigation';
 import { AuthProvider } from './src/context/AuthContext';
+import { SocketProvider } from './src/context/SocketContext';
 import { SnackbarProvider } from './src/context/SnackbarContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { LanguageProvider } from './src/context/LanguageContext';
@@ -54,14 +55,16 @@ export default function App() {
     <SafeAreaProvider>
       <LanguageProvider>
         <AuthProvider>
-          <SnackbarProvider>
-            <NotificationProvider>
-              <NavigationContainer ref={navigationRef}>
-                <AppNavigator />
-                <StatusBar style="auto" />
-              </NavigationContainer>
-            </NotificationProvider>
-          </SnackbarProvider>
+          <SocketProvider>
+            <SnackbarProvider>
+              <NotificationProvider>
+                <NavigationContainer ref={navigationRef}>
+                  <AppNavigator />
+                  <StatusBar style="auto" />
+                </NavigationContainer>
+              </NotificationProvider>
+            </SnackbarProvider>
+          </SocketProvider>
         </AuthProvider>
       </LanguageProvider>
     </SafeAreaProvider>

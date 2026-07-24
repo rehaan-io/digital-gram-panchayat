@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth, API_BASE_URL } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useSnackbar } from '../../context/SnackbarContext';
 import { CATEGORIES_MAP } from '../citizen/GenerateTicketScreen';
@@ -100,10 +101,42 @@ const EmployeeDashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchTickets();
     fetchLeaves();
   }, []);
+
+  // Sync / Missed Event Recovery
+  useEffect(() => {
+    if (isConnected) {
+      fetchTickets();
+      fetchLeaves();
+    }
+  }, [isConnected]);
+
+  // Real-Time Socket Updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTicketEvent = (data: any) => {
+      console.log('🔄 Real-time ticket event received in EmployeeDashboard:', data);
+      fetchTickets();
+    };
+
+    socket.on('ticket_assigned', handleTicketEvent);
+    socket.on('ticket_updated', handleTicketEvent);
+    socket.on('ticket_in_progress', handleTicketEvent);
+    socket.on('ticket_completed', handleTicketEvent);
+
+    return () => {
+      socket.off('ticket_assigned', handleTicketEvent);
+      socket.off('ticket_updated', handleTicketEvent);
+      socket.off('ticket_in_progress', handleTicketEvent);
+      socket.off('ticket_completed', handleTicketEvent);
+    };
+  }, [socket]);
 
   const handleRefresh = () => {
     setRefreshing(true);

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import CustomDateTimePicker from '../../components/CustomDateTimePicker';
 import { useAuth, API_BASE_URL, FILE_BASE_URL } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { CATEGORIES_MAP } from './GenerateTicketScreen';
 import { COLORS, globalStyles } from '../../styles/theme';
@@ -349,10 +350,47 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
     }
   };
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchTicketDetails();
     fetchEmployees();
   }, [ticketId]);
+
+  // Sync / Missed Event Recovery
+  useEffect(() => {
+    if (isConnected) {
+      fetchTicketDetails();
+    }
+  }, [isConnected]);
+
+  // Real-time socket event subscription for specific ticket
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTicketEvent = (updatedTicket: any) => {
+      if (updatedTicket && (updatedTicket.id === ticketId || updatedTicket.ticketId === ticket?.ticketId)) {
+        console.log(`🔄 Real-time update for ticket ${ticketId} received:`, updatedTicket);
+        fetchTicketDetails();
+      }
+    };
+
+    socket.on('ticket_assigned', handleTicketEvent);
+    socket.on('ticket_updated', handleTicketEvent);
+    socket.on('ticket_approved', handleTicketEvent);
+    socket.on('ticket_declined', handleTicketEvent);
+    socket.on('ticket_in_progress', handleTicketEvent);
+    socket.on('ticket_completed', handleTicketEvent);
+
+    return () => {
+      socket.off('ticket_assigned', handleTicketEvent);
+      socket.off('ticket_updated', handleTicketEvent);
+      socket.off('ticket_approved', handleTicketEvent);
+      socket.off('ticket_declined', handleTicketEvent);
+      socket.off('ticket_in_progress', handleTicketEvent);
+      socket.off('ticket_completed', handleTicketEvent);
+    };
+  }, [socket, ticketId, ticket]);
 
   const handleAccept = async () => {
     setIsProcessing(true);

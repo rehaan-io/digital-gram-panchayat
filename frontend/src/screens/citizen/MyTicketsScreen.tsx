@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, Alert, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { useAuth, API_BASE_URL } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSocket } from '../../context/SocketContext';
 import { CATEGORIES_MAP } from './GenerateTicketScreen';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -65,9 +66,46 @@ const MyTicketsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  const { socket, isConnected } = useSocket();
+
   useEffect(() => {
     fetchTickets();
   }, []);
+
+  // Sync / Missed Event Recovery: refresh when socket reconnects
+  useEffect(() => {
+    if (isConnected) {
+      fetchTickets();
+    }
+  }, [isConnected]);
+
+  // Real-Time Socket Updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTicketEvent = (data: any) => {
+      console.log('🔄 Real-time ticket event received in MyTicketsScreen:', data);
+      fetchTickets();
+    };
+
+    socket.on('ticket_created', handleTicketEvent);
+    socket.on('ticket_assigned', handleTicketEvent);
+    socket.on('ticket_updated', handleTicketEvent);
+    socket.on('ticket_approved', handleTicketEvent);
+    socket.on('ticket_declined', handleTicketEvent);
+    socket.on('ticket_in_progress', handleTicketEvent);
+    socket.on('ticket_completed', handleTicketEvent);
+
+    return () => {
+      socket.off('ticket_created', handleTicketEvent);
+      socket.off('ticket_assigned', handleTicketEvent);
+      socket.off('ticket_updated', handleTicketEvent);
+      socket.off('ticket_approved', handleTicketEvent);
+      socket.off('ticket_declined', handleTicketEvent);
+      socket.off('ticket_in_progress', handleTicketEvent);
+      socket.off('ticket_completed', handleTicketEvent);
+    };
+  }, [socket]);
 
   const getStatusLocalized = (status: string) => {
     if (language === 'te') {
