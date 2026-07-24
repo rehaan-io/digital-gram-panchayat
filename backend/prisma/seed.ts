@@ -213,6 +213,13 @@ async function main() {
       content: 'Management of public assets like community halls, libraries, solid waste systems (SWPC Shed), and public tanks.',
       contentTe: 'కమ్యూనిటీ హాళ్లు, గ్రంథాలయాలు, ఘన వ్యర్థాల నిర్వహణ వ్యవస్థలు (SWPC షెడ్) మరియు పబ్లిక్ ట్యాంకులు వంటి ప్రజా ఆస్తుల నిర్వహణ.',
     },
+    {
+      key: 'pension_records',
+      title: 'Pension Beneficiary Records',
+      titleTe: 'పెన్షన్ లబ్ధిదారుల జాబితా',
+      content: 'View individual pension verification records, schemes, and monthly amounts for Gorantla Gram Panchayat.',
+      contentTe: 'గోరంట్ల గ్రామ పంచాయతీకి సంబంధించిన పెన్షన్ లబ్ధిదారుల పూర్తి జాబితా, పథకాలు మరియు మొత్తాలు.',
+    },
   ];
 
   for (const sec of sections) {
@@ -655,6 +662,33 @@ async function main() {
     await upsertByKey(prisma.communityAssetItem, 'name', ca.name, ca);
   }
   console.log('Community Assets seeded.');
+
+  // 24. Pension Records Tabular Seeding
+  console.log('Seeding Pension Records from JSON...');
+  const pensionRecordCount = await prisma.pensionRecord.count();
+  if (pensionRecordCount === 0) {
+    // Read local JSON file
+    const fs = require('fs');
+    const path = require('path');
+    const rawData = fs.readFileSync(path.join(__dirname, '../pension_records.json'), 'utf8');
+    const pensionRecordsList = JSON.parse(rawData);
+    
+    console.log(`Found ${pensionRecordsList.length} pension records in JSON. Inserting in chunks...`);
+    
+    // Chunk size of 500
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < pensionRecordsList.length; i += CHUNK_SIZE) {
+      const chunk = pensionRecordsList.slice(i, i + CHUNK_SIZE);
+      await prisma.pensionRecord.createMany({
+        data: chunk,
+        skipDuplicates: true,
+      });
+      console.log(`Inserted chunk ${Math.floor(i / CHUNK_SIZE) + 1} (${chunk.length} records)`);
+    }
+    console.log('Pension Records seeding completed.');
+  } else {
+    console.log(`Pension Records already exist (${pensionRecordCount} items). Skipping JSON seed.`);
+  }
 
   console.log('Database seeding successfully completed!');
 }

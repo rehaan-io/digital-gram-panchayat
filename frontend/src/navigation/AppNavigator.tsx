@@ -30,6 +30,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import CitizenDashboard from '../screens/citizen/CitizenDashboard';
 import GenerateTicketScreen from '../screens/citizen/GenerateTicketScreen';
 import MyTicketsScreen from '../screens/citizen/MyTicketsScreen';
+import PensionRecordsScreen from '../screens/citizen/PensionRecordsScreen';
 
 // Employee Screens
 import EmployeeDashboard from '../screens/employee/EmployeeDashboard';
@@ -297,6 +298,7 @@ export const AppNavigator: React.FC = () => {
           {/* Sub-screens (Detail views and forms opened from tabs) */}
           <Stack.Screen name="HomeScreen" component={HomeScreen} options={{ title: 'Home Details' }} />
           <Stack.Screen name="SectionDetail" component={SectionDetailScreen} options={{ title: 'Panchayat Services' }} />
+          <Stack.Screen name="PensionRecords" component={PensionRecordsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TicketDetail" component={TicketDetailScreen} options={{ title: 'Complaint Tracking' }} />
           <Stack.Screen name="GenerateTicket" component={GenerateTicketScreen} options={{ title: 'File a Complaint' }} />
           <Stack.Screen name="TicketAction" component={TicketActionScreen} options={{ title: 'Update Progress' }} />

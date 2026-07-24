@@ -1193,4 +1193,51 @@ router.get('/leaves/my', authenticateJWT as RequestHandler, (async (req: Authent
   }
 }) as RequestHandler);
 
+// 3. GET PAGINATED PENSION RECORDS
+router.get('/pension-records', (async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = (req.query.search as string) || '';
+
+    const offset = (page - 1) * limit;
+
+    // Build query criteria
+    let whereClause: any = {};
+    if (search.trim() !== '') {
+      whereClause = {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { pensionId: { contains: search } },
+          { mobileNumber: { contains: search } },
+          { scheme: { contains: search, mode: 'insensitive' } },
+          { sgswName: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const [totalRecords, records] = await Promise.all([
+      prisma.pensionRecord.count({ where: whereClause }),
+      prisma.pensionRecord.findMany({
+        where: whereClause,
+        orderBy: { sno: 'asc' },
+        skip: offset,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    return res.status(200).json({
+      data: records,
+      page,
+      limit,
+      totalRecords,
+      totalPages,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+}) as RequestHandler);
+
 export default router;

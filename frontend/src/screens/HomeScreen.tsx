@@ -39,6 +39,7 @@ const SECTION_META: Record<string, { icon: any; color: string; lightColor: strin
   education:        { icon: 'book',              color: '#820263', lightColor: '#F3EBF0' },
   emergency_contacts: { icon: 'call',            color: '#D90368', lightColor: '#FDF2F7' },
   pensions:         { icon: 'cash',              color: '#820263', lightColor: '#F3EBF0' },
+  pension_records:  { icon: 'card',              color: '#D90368', lightColor: '#FDF2F7' },
   anganwadi:        { icon: 'rose',              color: '#D90368', lightColor: '#FDF2F7' },
   mgnregs:          { icon: 'hammer',            color: '#FFD400', lightColor: '#FFFDF0' },
   horticulture:     { icon: 'flower',            color: '#2E294E', lightColor: '#EAEAEA' },
@@ -192,6 +193,7 @@ const AnimatedCategoryCard: React.FC<{
       case 'education': return t('educationLiteracy');
       case 'agriculture': return t('agricultureLivestock');
       case 'pensions': return t('pensionSchemes');
+      case 'pension_records': return language === 'te' ? 'పెన్షన్ లబ్ధిదారుల జాబితా' : 'Pension Beneficiaries';
       case 'tax_revenue': return t('taxRevenue');
       case 'anganwadi': return t('anganwadiServices');
       case 'mgnregs': return t('mgnregsWorks');
@@ -213,6 +215,7 @@ const AnimatedCategoryCard: React.FC<{
       case 'education': return 'గ్రామ పాఠశాలలు, కంప్యూటర్ ల్యాబ్‌లు మరియు మధ్యాహ్న భోజన పథకం వివరాలు.';
       case 'agriculture': return 'రైతు భరోసా, సాయిల్ కార్డ్ విశ్లేషణలు మరియు విత్తనాల పంపిణీ వివరాలు.';
       case 'pensions': return 'వృద్ధాప్య, వితంతు మరియు వికలాంగుల పింఛన్ల పంపిణీ వివరాలు.';
+      case 'pension_records': return 'గోరంట్ల గ్రామ పంచాయతీకి సంబంధించిన పెన్షన్ లబ్ధిదారుల పూర్తి జాబితా, పథకాలు మరియు మొత్తాలు.';
       case 'tax_revenue': return 'గ్రామ పన్ను వసూళ్లు మరియు ప్రభుత్వ నిధుల కేటాయింపుల వివరాలు.';
       case 'anganwadi': return 'చిన్నారులకు పౌష్టికాహారం మరియు అంగన్‌వాడీ కేంద్రాల పర్యవేక్షణ వివరాలు.';
       case 'mgnregs': return 'ఉపాధి హామీ పథకం పనులు మరియు గ్రామ ఉపాధి కార్డుల వివరాలు.';
@@ -1038,7 +1041,13 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 index={index}
                 userRole={user?.role}
                 getSummary={getSummary}
-                onPress={() => navigation.navigate('SectionDetail', { sectionKey: item.key })}
+                onPress={() => {
+                  if (item.key === 'pension_records') {
+                    navigation.navigate('PensionRecords');
+                  } else {
+                    navigation.navigate('SectionDetail', { sectionKey: item.key });
+                  }
+                }}
               />
             ))}
           </View>
