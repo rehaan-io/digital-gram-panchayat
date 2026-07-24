@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 // Helper: Send email via Resend
 const sendVerificationEmail = async (email: string, fullName: string, token: string) => {
+  console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendVerificationEmail');
   const verifyUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/verify-email/${token}`;
   
   console.log('\n==================================================');
@@ -20,10 +21,14 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
 
   try {
     const apiKey = process.env.RESEND_API_KEY;
+    console.log('[LOG] RESEND_API_KEY status:', apiKey ? `Loaded (length: ${apiKey.length})` : 'NOT loaded (undefined/empty)');
+    
     if (!apiKey) {
-      console.error('❌ Resend API Key is missing in environment variables (.env)');
+      console.error('[LOG] EMAIL_SENT_FAILURE: Resend API Key is missing in environment variables (.env)');
       return;
     }
+    
+    console.log('[LOG] RESEND_API_CALLED - Dispatching fetch to Resend API');
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -58,14 +63,16 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
       })
     });
 
+    console.log('[LOG] RESEND_RESPONSE_RECEIVED - Status:', response.status);
+
     if (!response.ok) {
       const errData = await response.json();
-      console.error('Resend API error response:', errData);
+      console.error('[LOG] EMAIL_SENT_FAILURE: Resend API returned error:', errData);
     } else {
-      console.log('Resend email sent successfully.');
+      console.log('[LOG] EMAIL_SENT_SUCCESS - Email sent successfully via Resend API.');
     }
-  } catch (err) {
-    console.error('Failed to send verification email via Resend:', err);
+  } catch (err: any) {
+    console.error('[LOG] EMAIL_SENT_FAILURE: Failed to send verification email via Resend catch block:', err);
   }
 };
 
@@ -83,6 +90,7 @@ const sendResetEmail = async (email: string, fullName: string, token: string) =>
 
 // 1. CITIZEN REGISTRATION
 router.post('/register', async (req: Request, res: Response) => {
+  console.log('[LOG] REGISTER_START - Request body:', { fullName: req.body.fullName, email: req.body.email, phone: req.body.phone });
   const { fullName, phone, email, password, confirmPassword } = req.body;
 
   if (!fullName || !phone || !email || !password || !confirmPassword) {
@@ -119,6 +127,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET || 'gram_panchayat_super_secure_secret_key_2026_redist', {
       expiresIn: '24h',
     });
+    console.log('[LOG] TOKEN_GENERATED - Verification token generated for:', email);
 
     // Create user
     const newUser = await prisma.user.create({
