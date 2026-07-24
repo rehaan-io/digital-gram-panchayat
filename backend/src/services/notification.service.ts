@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { WebSocketService } from './websocket.service';
 
 const prisma = new PrismaClient();
 
@@ -86,6 +87,16 @@ export class NotificationService {
         })();
       }
 
+      // 4. Deliver Real-Time WebSocket Event
+      WebSocketService.sendToUser(userId, 'notification_created', {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        ticketId: notification.ticketId,
+        createdAt: notification.createdAt,
+        isRead: notification.isRead,
+      });
+
       return notification;
     } catch (error) {
       console.error('Failed to create/send notification:', error);
@@ -164,6 +175,13 @@ export class NotificationService {
           }
         })();
       }
+      // Broadcast WebSocket Event
+      WebSocketService.broadcast('announcement_broadcast', {
+        id: announcementId,
+        title,
+        content,
+        createdAt: new Date(),
+      });
 
       console.log(`📢 Broadcast complete.`);
     } catch (error) {

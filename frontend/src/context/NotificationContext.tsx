@@ -241,6 +241,68 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [token, fetchNotifications]);
 
+  // Setup WebSocket connection for real-time foreground updates
+  useEffect(() => {
+    if (!token) return;
+
+    // Convert http/https REST base url to ws/wss dynamic endpoint
+    const wsUrl = API_BASE_URL
+      .replace(/^http/, 'ws')
+      .replace(/\/api$/, '') + `/?token=${token}`;
+
+    console.log('🔌 Connecting to WebSocket:', wsUrl.replace(token, 'REDACTED'));
+
+    let socket: WebSocket | null = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log('🟢 WebSocket connection established.');
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📩 WebSocket message received:', data);
+
+        if (data.event === 'notification_created') {
+          // Play foreground sound!
+          playForegroundSound();
+
+          // Show in-app banner toast/snackbar
+          showSnackbar(`${data.payload.title}: ${data.payload.message}`, 'info');
+
+          // Refresh the notifications feed
+          fetchNotifications();
+        } else if (data.event === 'announcement_broadcast') {
+          // Play foreground sound!
+          playForegroundSound();
+
+          // Show announcement alert
+          showSnackbar(`New Announcement: ${data.payload.title}`, 'success');
+
+          // Refresh list
+          fetchNotifications();
+        }
+      } catch (err) {
+        console.error('Failed to parse WebSocket message frame:', err);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('❌ WebSocket error occurred:', error);
+    };
+
+    socket.onclose = (event) => {
+      console.log('❌ WebSocket connection closed:', event.code, event.reason);
+    };
+
+    return () => {
+      if (socket) {
+        socket.close();
+        socket = null;
+      }
+    };
+  }, [token, fetchNotifications, playForegroundSound, showSnackbar]);
+
   const safeNotifications = Array.isArray(notifications) ? notifications : [];
   const unreadCount = safeNotifications.filter((n) => !n.isRead).length;
 
