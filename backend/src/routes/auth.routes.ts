@@ -7,39 +7,61 @@ import nodemailer from 'nodemailer';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Helper: Send email (Simulated using Ethereal or logging to console)
+// Helper: Send email via Resend
 const sendVerificationEmail = async (email: string, fullName: string, token: string) => {
   const verifyUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/verify-email/${token}`;
   
   console.log('\n==================================================');
-  console.log(`✉️  [EMAIL SEND - MOCK SMTP]`);
+  console.log(`✉️  [EMAIL SENDING VIA RESEND]`);
   console.log(`To      : ${fullName} <${email}>`);
   console.log(`Subject : Verify Your Panchayat Account`);
   console.log(`Link    : ${verifyUrl}`);
   console.log('==================================================\n');
 
   try {
-    // Attempt local ethereal or SMTP config if provided, fail silently to console logging
-    if (process.env.SMTP_HOST) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-
-      await transporter.sendMail({
-        from: '"Digital Panchayat" <no-reply@panchayat.gov.in>',
+    const apiKey = process.env.RESEND_API_KEY || 're_SeDBAqYE_btwydGnC3Ck4udyBRJFZs74E';
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        from: 'Digital Panchayat <onboarding@resend.dev>',
         to: email,
-        subject: 'Verify Your Panchayat Account',
-        html: `<p>Hello ${fullName},</p><p>Thank you for registering at Digital Gram Panchayat. Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
-      });
+        subject: 'Verify Your Panchayat Account - Gorantla Grama Panchayati',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #FDFBF7;">
+            <div style="background-color: #820263; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+              <h2 style="color: #FFD400; margin: 0; font-size: 24px; letter-spacing: 2px;">GGP</h2>
+              <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Gorantla Grama Panchayati</p>
+            </div>
+            <div style="padding: 30px; background-color: #FFFFFF;">
+              <h3 style="color: #2E294E; margin-top: 0;">Welcome, ${fullName}!</h3>
+              <p style="color: #4A4A4A; line-height: 1.6;">Thank you for registering at the Digital Gram Panchayat portal. To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verifyUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+              </div>
+              <p style="color: #777777; font-size: 12px; line-height: 1.6;">If the button above does not work, copy and paste the following URL into your web browser:</p>
+              <p style="color: #820263; font-size: 12px; word-break: break-all;"><a href="${verifyUrl}" style="color: #820263;">${verifyUrl}</a></p>
+            </div>
+            <div style="background-color: #F5F5F5; padding: 15px; text-align: center; font-size: 11px; color: #888888; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+              <p style="margin: 0;">This is an automated system email. Please do not reply directly to this mail.</p>
+              <p style="margin: 5px 0 0 0;">&copy; 2026 Gorantla Grama Panchayati. All rights reserved.</p>
+            </div>
+          </div>
+        `
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      console.error('Resend API error response:', errData);
+    } else {
+      console.log('Resend email sent successfully.');
     }
   } catch (err) {
-    console.error('Real email transport failed, fallback to console log success.');
+    console.error('Failed to send verification email via Resend:', err);
   }
 };
 
@@ -103,16 +125,16 @@ router.post('/register', async (req: Request, res: Response) => {
         password: hashedPassword,
         username,
         role: 'CITIZEN',
-        isVerified: true, // Temporary: Auto-verify citizens
+        isVerified: false,
         verificationToken,
       },
     });
 
     // Send verification email
-    // await sendVerificationEmail(email, fullName, verificationToken);
+    await sendVerificationEmail(email, fullName, verificationToken);
 
     return res.status(201).json({
-      message: 'Registration successful! You can now log in.',
+      message: 'Registration successful! Please check your email to verify your account.',
       username: newUser.username,
     });
   } catch (error: any) {
@@ -189,13 +211,13 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
-    // Citizen must verify email before logging in (TEMPORARILY DISABLED)
-    // if (user.role === 'CITIZEN' && !user.isVerified) {
-    //   return res.status(403).json({
-    //     message: 'Your email is not verified. Please check your inbox and verify your email.',
-    //     unverified: true,
-    //   });
-    // }
+    // Citizen must verify email before logging in
+    if (user.role === 'CITIZEN' && !user.isVerified) {
+      return res.status(403).json({
+        message: 'Your email is not verified. Please check your inbox and verify your email.',
+        unverified: true,
+      });
+    }
 
     // Generate JWT token
     const token = jwt.sign(

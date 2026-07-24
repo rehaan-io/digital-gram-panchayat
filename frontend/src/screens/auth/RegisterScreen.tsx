@@ -50,7 +50,7 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
 
     if (result.success) {
-      showSnackbar('Registration successful! You can now log in.', 'success');
+      showSnackbar('Registration successful! Please check your email to verify your account.', 'success');
       navigation.navigate('Login');
     } else {
       showSnackbar(result.message || 'An error occurred.', 'error');
