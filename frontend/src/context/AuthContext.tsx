@@ -159,6 +159,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
+      // Clear push token on backend before deleting local token
+      if (token) {
+        try {
+          await fetch(`${API_BASE_URL}/notifications/fcm-token`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ fcmToken: null }),
+          });
+          console.log('Push token successfully cleared from backend during logout');
+        } catch (pushClearErr) {
+          console.error('Failed to clear push token during logout:', pushClearErr);
+        }
+      }
+
       await SecureStore.deleteItemAsync('token');
       await SecureStore.deleteItemAsync('user');
       setToken(null);
