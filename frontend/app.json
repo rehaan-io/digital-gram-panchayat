@@ -31,6 +31,18 @@
             "extraProguardRules": "-keep class expo.modules.kotlin.** { *; }\n-keepclassmembers class expo.modules.kotlin.** { *; }\n-keep class expo.modules.kotlin.types.LazyKType { *; }"
           }
         }
+      ],
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/ggp_logo.jpg",
+          "color": "#820263",
+          "sounds": [
+            "./assets/background.mp3",
+            "./assets/fore_ground.mp3"
+          ]
+        }
       ]
     ],
     "extra": {

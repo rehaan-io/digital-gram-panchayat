@@ -59,7 +59,8 @@ export class NotificationService {
               },
               body: JSON.stringify({
                 to: fcmToken,
-                sound: 'default',
+                sound: 'background.mp3',
+                channelId: 'ggp-notifications',
                 title: title,
                 body: message,
                 data: { ticketId, notificationId: notification.id },
@@ -96,10 +97,10 @@ export class NotificationService {
    */
   static async broadcastAnnouncement(announcementId: string, title: string, content: string) {
     try {
-      // Fetch all citizens
+      // Fetch all citizens with their fcmTokens
       const citizens = await prisma.user.findMany({
         where: { role: 'CITIZEN' },
-        select: { id: true },
+        select: { id: true, fcmToken: true },
       });
 
       console.log(`📢 Broadcasting announcement notification to ${citizens.length} citizens...`);
@@ -114,6 +115,55 @@ export class NotificationService {
       await prisma.notification.createMany({
         data: notificationsData,
       });
+
+      // Fetch created notifications to grab their IDs for push notification data payload
+      const createdNotifications = await prisma.notification.findMany({
+        where: {
+          userId: { in: citizens.map(c => c.id) },
+          title: `Panchayat Announcement: ${title}`,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: citizens.length,
+      });
+
+      // Construct push packets
+      const pushPackets = citizens
+        .filter((citizen) => citizen.fcmToken)
+        .map((citizen) => {
+          const matchingDbNotif = createdNotifications.find(n => n.userId === citizen.id);
+          return {
+            to: citizen.fcmToken,
+            sound: 'background.mp3',
+            channelId: 'ggp-notifications',
+            title: `Panchayat Announcement: ${title}`,
+            body: content.length > 80 ? content.substring(0, 77) + '...' : content,
+            data: { notificationId: matchingDbNotif?.id },
+          };
+        });
+
+      if (pushPackets.length > 0) {
+        // Send asynchronously to not block threads
+        (async () => {
+          try {
+            for (let i = 0; i < pushPackets.length; i += 100) {
+              const batch = pushPackets.slice(i, i + 100);
+              const pushResponse = await fetch('https://exp.host/--/api/v2/push/send', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Accept: 'application/json',
+                },
+                body: JSON.stringify(batch),
+              });
+              if (!pushResponse.ok) {
+                console.error('Failed to send batch push notifications for announcement');
+              }
+            }
+          } catch (pushErr) {
+            console.error('Failed to dispatch broadcast push packets:', pushErr);
+          }
+        })();
+      }
 
       console.log(`📢 Broadcast complete.`);
     } catch (error) {
