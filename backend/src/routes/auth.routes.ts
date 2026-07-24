@@ -19,7 +19,11 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
   console.log('==================================================\n');
 
   try {
-    const apiKey = process.env.RESEND_API_KEY || 're_SeDBAqYE_btwydGnC3Ck4udyBRJFZs74E';
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error('❌ Resend API Key is missing in environment variables (.env)');
+      return;
+    }
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
