@@ -7,143 +7,127 @@ import nodemailer from 'nodemailer';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Helper: Send email via Brevo API
+// Helper: Send email via Nodemailer/Gmail SMTP
 const sendVerificationEmail = async (email: string, fullName: string, token: string) => {
-  console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendVerificationEmail');
+  console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendVerificationEmail via Nodemailer/Gmail');
   const verifyUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/verify-email/${token}`;
   
   console.log('\n==================================================');
-  console.log(`✉️  [EMAIL SENDING VIA BREVO]`);
+  console.log(`✉️  [EMAIL SENDING VIA GMAIL SMTP]`);
   console.log(`To      : ${fullName} <${email}>`);
   console.log(`Subject : Verify Your Panchayat Account`);
   console.log(`Link    : ${verifyUrl}`);
   console.log('==================================================\n');
 
   try {
-    const apiKey = process.env.BREVO_API_KEY;
-    console.log('[LOG] BREVO_API_KEY status:', apiKey ? `Loaded (length: ${apiKey.length})` : 'NOT loaded (undefined/empty)');
-    
-    if (!apiKey) {
-      console.error('[LOG] EMAIL_SENT_FAILURE: Brevo API Key is missing in environment variables (.env)');
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+    console.log('[LOG] GMAIL_USER status:', user ? `Loaded (${user})` : 'NOT loaded (undefined/empty)');
+    console.log('[LOG] GMAIL_APP_PASSWORD status:', pass ? `Loaded (length: ${pass.length})` : 'NOT loaded (undefined/empty)');
+
+    if (!user || !pass) {
+      console.error('[LOG] EMAIL_SENT_FAILURE: Gmail credentials (GMAIL_USER or GMAIL_APP_PASSWORD) are missing in environment variables (.env)');
       return;
     }
-    
-    console.log('[LOG] BREVO_API_CALLED - Dispatching fetch to Brevo API');
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'api-key': apiKey,
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        sender: { name: 'Digital Panchayat', email: process.env.BREVO_SENDER_EMAIL || 'rehaangamer433@gmail.com' },
-        to: [{ email, name: fullName }],
-        subject: 'Verify Your Panchayat Account - Gorantla Grama Panchayati',
-        htmlContent: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #FDFBF7;">
-            <div style="background-color: #820263; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-              <h2 style="color: #FFD400; margin: 0; font-size: 24px; letter-spacing: 2px;">GGP</h2>
-              <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Gorantla Grama Panchayati</p>
-            </div>
-            <div style="padding: 30px; background-color: #FFFFFF;">
-              <h3 style="color: #2E294E; margin-top: 0;">Welcome, ${fullName}!</h3>
-              <p style="color: #4A4A4A; line-height: 1.6;">Thank you for registering at the Digital Gram Panchayat portal. To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${verifyUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
-              </div>
-              <p style="color: #777777; font-size: 12px; line-height: 1.6;">If the button above does not work, copy and paste the following URL into your web browser:</p>
-              <p style="color: #820263; font-size: 12px; word-break: break-all;"><a href="${verifyUrl}" style="color: #820263;">${verifyUrl}</a></p>
-            </div>
-            <div style="background-color: #F5F5F5; padding: 15px; text-align: center; font-size: 11px; color: #888888; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-              <p style="margin: 0;">This is an automated system email. Please do not reply directly to this mail.</p>
-              <p style="margin: 5px 0 0 0;">&copy; 2026 Gorantla Grama Panchayati. All rights reserved.</p>
-            </div>
-          </div>
-        `
-      })
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass }
     });
 
-    console.log('[LOG] BREVO_RESPONSE_RECEIVED - Status:', response.status);
+    console.log('[LOG] NODEMAILER_SENDMAIL_CALLED - Dispatching sendMail to Gmail');
+    await transporter.sendMail({
+      from: `"Digital Panchayat" <${user}>`,
+      to: email,
+      subject: 'Verify Your Panchayat Account - Gorantla Grama Panchayati',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #FDFBF7;">
+          <div style="background-color: #820263; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+            <h2 style="color: #FFD400; margin: 0; font-size: 24px; letter-spacing: 2px;">GGP</h2>
+            <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Gorantla Grama Panchayati</p>
+          </div>
+          <div style="padding: 30px; background-color: #FFFFFF;">
+            <h3 style="color: #2E294E; margin-top: 0;">Welcome, ${fullName}!</h3>
+            <p style="color: #4A4A4A; line-height: 1.6;">Thank you for registering at the Digital Gram Panchayat portal. To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verifyUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+            </div>
+            <p style="color: #777777; font-size: 12px; line-height: 1.6;">If the button above does not work, copy and paste the following URL into your web browser:</p>
+            <p style="color: #820263; font-size: 12px; word-break: break-all;"><a href="${verifyUrl}" style="color: #820263;">${verifyUrl}</a></p>
+          </div>
+          <div style="background-color: #F5F5F5; padding: 15px; text-align: center; font-size: 11px; color: #888888; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+            <p style="margin: 0;">This is an automated system email. Please do not reply directly to this mail.</p>
+            <p style="margin: 5px 0 0 0;">&copy; 2026 Gorantla Grama Panchayati. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      console.error('[LOG] EMAIL_SENT_FAILURE: Brevo API returned error:', errData);
-    } else {
-      console.log('[LOG] EMAIL_SENT_SUCCESS - Email sent successfully via Brevo API.');
-    }
+    console.log('[LOG] EMAIL_SENT_SUCCESS - Email sent successfully via Nodemailer/Gmail SMTP.');
   } catch (err: any) {
-    console.error('[LOG] EMAIL_SENT_FAILURE: Failed to send verification email via Brevo catch block:', err);
+    console.error('[LOG] EMAIL_SENT_FAILURE: Failed to send verification email via Nodemailer catch block:', err);
   }
 };
 
-// Helper: Send password reset email via Brevo API
+// Helper: Send password reset email via Nodemailer/Gmail SMTP
 const sendResetEmail = async (email: string, fullName: string, token: string) => {
-  console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendResetEmail');
+  console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendResetEmail via Nodemailer/Gmail');
   const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/reset-password-page?token=${token}`;
   
   console.log('\n==================================================');
-  console.log(`✉️  [EMAIL SENDING VIA BREVO]`);
+  console.log(`✉️  [EMAIL SENDING VIA GMAIL SMTP]`);
   console.log(`To      : ${fullName} <${email}>`);
   console.log(`Subject : Reset Your Panchayat Account Password`);
   console.log(`Link    : ${resetUrl}`);
   console.log('==================================================\n');
 
   try {
-    const apiKey = process.env.BREVO_API_KEY;
-    console.log('[LOG] BREVO_API_KEY status:', apiKey ? `Loaded (length: ${apiKey.length})` : 'NOT loaded (undefined/empty)');
-    
-    if (!apiKey) {
-      console.error('[LOG] EMAIL_SENT_FAILURE: Brevo API Key is missing in environment variables (.env)');
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+    console.log('[LOG] GMAIL_USER status:', user ? `Loaded (${user})` : 'NOT loaded (undefined/empty)');
+    console.log('[LOG] GMAIL_APP_PASSWORD status:', pass ? `Loaded (length: ${pass.length})` : 'NOT loaded (undefined/empty)');
+
+    if (!user || !pass) {
+      console.error('[LOG] EMAIL_SENT_FAILURE: Gmail credentials (GMAIL_USER or GMAIL_APP_PASSWORD) are missing in environment variables (.env)');
       return;
     }
-    
-    console.log('[LOG] BREVO_API_CALLED - Dispatching fetch to Brevo API');
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'api-key': apiKey,
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        sender: { name: 'Digital Panchayat', email: process.env.BREVO_SENDER_EMAIL || 'rehaangamer433@gmail.com' },
-        to: [{ email, name: fullName }],
-        subject: 'Reset Your Panchayat Account Password - Gorantla Grama Panchayati',
-        htmlContent: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #FDFBF7;">
-            <div style="background-color: #820263; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-              <h2 style="color: #FFD400; margin: 0; font-size: 24px; letter-spacing: 2px;">GGP</h2>
-              <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Gorantla Grama Panchayati</p>
-            </div>
-            <div style="padding: 30px; background-color: #FFFFFF;">
-              <h3 style="color: #2E294E; margin-top: 0;">Hello, ${fullName}!</h3>
-              <p style="color: #4A4A4A; line-height: 1.6;">We received a request to reset your password. If you did not make this request, you can ignore this email. Otherwise, click the button below to reset your password:</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
-              </div>
-              <p style="color: #777777; font-size: 12px; line-height: 1.6;">If the button above does not work, copy and paste the following URL into your web browser:</p>
-              <p style="color: #820263; font-size: 12px; word-break: break-all;"><a href="${resetUrl}" style="color: #820263;">${resetUrl}</a></p>
-            </div>
-            <div style="background-color: #F5F5F5; padding: 15px; text-align: center; font-size: 11px; color: #888888; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-              <p style="margin: 0;">This is an automated system email. Please do not reply directly to this mail.</p>
-              <p style="margin: 5px 0 0 0;">&copy; 2026 Gorantla Grama Panchayati. All rights reserved.</p>
-            </div>
-          </div>
-        `
-      })
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass }
     });
 
-    console.log('[LOG] BREVO_RESPONSE_RECEIVED - Status:', response.status);
+    console.log('[LOG] NODEMAILER_SENDMAIL_CALLED - Dispatching sendMail to Gmail');
+    await transporter.sendMail({
+      from: `"Digital Panchayat" <${user}>`,
+      to: email,
+      subject: 'Reset Your Panchayat Account Password - Gorantla Grama Panchayati',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #FDFBF7;">
+          <div style="background-color: #820263; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+            <h2 style="color: #FFD400; margin: 0; font-size: 24px; letter-spacing: 2px;">GGP</h2>
+            <p style="color: #FFFFFF; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Gorantla Grama Panchayati</p>
+          </div>
+          <div style="padding: 30px; background-color: #FFFFFF;">
+            <h3 style="color: #2E294E; margin-top: 0;">Hello, ${fullName}!</h3>
+            <p style="color: #4A4A4A; line-height: 1.6;">We received a request to reset your password. If you did not make this request, you can ignore this email. Otherwise, click the button below to reset your password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+            </div>
+            <p style="color: #777777; font-size: 12px; line-height: 1.6;">If the button above does not work, copy and paste the following URL into your web browser:</p>
+            <p style="color: #820263; font-size: 12px; word-break: break-all;"><a href="${resetUrl}" style="color: #820263;">${resetUrl}</a></p>
+          </div>
+          <div style="background-color: #F5F5F5; padding: 15px; text-align: center; font-size: 11px; color: #888888; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+            <p style="margin: 0;">This is an automated system email. Please do not reply directly to this mail.</p>
+            <p style="margin: 5px 0 0 0;">&copy; 2026 Gorantla Grama Panchayati. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    });
 
-    if (!response.ok) {
-      const errData = await response.json();
-      console.error('[LOG] EMAIL_SENT_FAILURE: Brevo API returned error:', errData);
-    } else {
-      console.log('[LOG] EMAIL_SENT_SUCCESS - Password reset email sent successfully via Brevo API.');
-    }
+    console.log('[LOG] EMAIL_SENT_SUCCESS - Password reset email sent successfully via Nodemailer/Gmail SMTP.');
   } catch (err: any) {
-    console.error('[LOG] EMAIL_SENT_FAILURE: Failed to send password reset email via Brevo catch block:', err);
+    console.error('[LOG] EMAIL_SENT_FAILURE: Failed to send password reset email via Nodemailer catch block:', err);
   }
 };
 
