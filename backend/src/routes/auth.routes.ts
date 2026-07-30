@@ -31,8 +31,13 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
     }
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass }
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     console.log('[LOG] NODEMAILER_SENDMAIL_CALLED - Dispatching sendMail to Gmail');
@@ -93,8 +98,13 @@ const sendResetEmail = async (email: string, fullName: string, token: string) =>
     }
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass }
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     console.log('[LOG] NODEMAILER_SENDMAIL_CALLED - Dispatching sendMail to Gmail');
