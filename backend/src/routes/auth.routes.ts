@@ -176,13 +176,10 @@ router.post('/register', async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create verification token
-    const verificationToken = jwt.sign({ email }, process.env.JWT_SECRET || 'gram_panchayat_super_secure_secret_key_2026_redist', {
-      expiresIn: '24h',
-    });
-    console.log('[LOG] TOKEN_GENERATED - Verification token generated for:', email);
+    // Create verification token (Disabled for now)
+    const verificationToken = null;
 
-    // Create user
+    // Create user (Auto-verified)
     const newUser = await prisma.user.create({
       data: {
         fullName,
@@ -191,16 +188,16 @@ router.post('/register', async (req: Request, res: Response) => {
         password: hashedPassword,
         username,
         role: 'CITIZEN',
-        isVerified: false,
+        isVerified: true,
         verificationToken,
       },
     });
 
-    // Send verification email
-    await sendVerificationEmail(email, fullName, verificationToken);
+    // Send verification email (Skipped to avoid SMTP connection timeouts)
+    // await sendVerificationEmail(email, fullName, verificationToken);
 
     return res.status(201).json({
-      message: 'Registration successful! Please check your email to verify your account.',
+      message: 'Registration successful! You can now log in to your account.',
       username: newUser.username,
     });
   } catch (error: any) {
@@ -277,13 +274,15 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
-    // Citizen must verify email before logging in
+    // Citizen must verify email before logging in (Bypassed for now)
+    /*
     if (user.role === 'CITIZEN' && !user.isVerified) {
       return res.status(403).json({
         message: 'Your email is not verified. Please check your inbox and verify your email.',
         unverified: true,
       });
     }
+    */
 
     // Generate JWT token
     const token = jwt.sign(
