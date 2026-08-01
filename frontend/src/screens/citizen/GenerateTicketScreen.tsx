@@ -26,6 +26,82 @@ export const CATEGORIES_MAP = [
   { key: 'Others', te: 'ఇతరములు', en: 'Others' },
 ];
 
+export const TICKET_TITLE_CAPSULES: Record<string, Array<{ en: string; te: string }>> = {
+  'Road': [
+    { en: 'Potholes on Road', te: 'రోడ్డుపై గుంతలు' },
+    { en: 'Broken Road Surface', te: 'పగిలిన రోడ్డు ఉపరితలం' },
+    { en: 'Water Stagnant on Road', te: 'రోడ్డుపై నిలిచిన నీరు' },
+    { en: 'Road Expansion Needed', te: 'రోడ్డు విస్తరణ అవసరం' },
+    { en: 'Slippery Road due to Mud', te: 'మట్టి కారణంగా జారే రోడ్డు' },
+    { en: 'Speed Breaker Required', te: 'స్పీడ్ బ్రేకర్ అవసరం' },
+  ],
+  'Street Light': [
+    { en: 'Street Light Not Working', te: 'వీధి దీపం పనిచేయడం లేదు' },
+    { en: 'Dim Street Light', te: 'మసకగా వెలుగుతున్న వీధి దీపం' },
+    { en: 'Flickering Light', te: 'మినుకుమినుకుమంటున్న వీధి దీపం' },
+    { en: 'New Street Light Needed', te: 'కొత్త వీధి దీపం అవసరం' },
+    { en: 'Daytime Light Left On', te: 'పగటిపూట కూడా వెలుగుతున్న దీపం' },
+    { en: 'Broken Light Cover', te: 'పగిలిన దీపం కవరు' },
+  ],
+  'Garbage': [
+    { en: 'Garbage Dump Overflowing', te: 'చెత్త కుప్ప నిండిపోయింది' },
+    { en: 'No Dustbin in Area', te: 'ప్రాంతంలో డస్ట్‌బిన్ లేదు' },
+    { en: 'Unpleasant Smell from Waste', te: 'చెత్త నుండి దుర్వాసన' },
+    { en: 'Garbage Collector Absent', te: 'చెత్త సేకరించేవాడు రావడం లేదు' },
+    { en: 'Public Waste Burning', te: 'బహిరంగంగా చెత్త దహనం' },
+    { en: 'Plastic Dump on Street', te: 'వీధిలో ప్లాస్టిక్ వ్యర్థాలు' },
+  ],
+  'Water Supply': [
+    { en: 'No Water Supply', te: 'నీటి సరఫరా నిలిచిపోయింది' },
+    { en: 'Muddy / Dirty Water', te: 'మట్టి / మురికి నీరు' },
+    { en: 'Low Water Pressure', te: 'తక్కువ నీటి ఒత్తిడి' },
+    { en: 'Water Pipe Leakage', te: 'నీటి పైపు లీకేజీ' },
+    { en: 'Irregular Water Timings', te: 'క్రమరహిత నీటి సరఫరా వేళలు' },
+    { en: 'Bad Smell in Drinking Water', te: 'తాగునీటిలో దుర్వాసన' },
+  ],
+  'Water Stocked': [
+    { en: 'Stagnant Rainwater', te: 'నిలిచిన వర్షపు నీరు' },
+    { en: 'Mosquito Breeding in Water', te: 'నీటిలో దోమల ఉత్పత్తి' },
+    { en: 'Blocked Rainwater Drain', te: 'బ్లాక్ అయిన వర్షపు నీటి కాలువ' },
+    { en: 'Water Stagnant Near House', te: 'ఇంటి దగ్గర నిలిచిన నీరు' },
+    { en: 'Muddy Water Puddle', te: 'మట్టి నీటి గుంత' },
+  ],
+  'Drainage': [
+    { en: 'Blocked Drainage Canal', te: 'బ్లాక్ అయిన డ్రైనేజీ కాలువ' },
+    { en: 'Drainage Water Overflowing', te: 'పొంగిపొర్లుతున్న మురుగునీరు' },
+    { en: 'Broken Drainage Slab', te: 'పగిలిన డ్రైనేజీ స్లాబ్' },
+    { en: 'Open Manhole Hazard', te: 'తెరిచి ఉన్న మ్యాన్‌హోల్ ప్రమాదం' },
+    { en: 'Drainage Cleaning Needed', te: 'డ్రైనేజీ క్లీనింగ్ అవసరం' },
+  ],
+  'Hygiene': [
+    { en: 'Public Place Needs Cleaning', te: 'పబ్లిక్ ప్లేస్ శుభ్రపరచడం అవసరం' },
+    { en: 'Animal Carcass Removal', te: 'చనిపోయిన జంతువుల తొలగింపు' },
+    { en: 'Open Defecation Issue', te: 'బహిరంగ మలవిసర్జన సమస్య' },
+    { en: 'Unclean Public Toilet', te: 'అపరిశుభ్రమైన పబ్లిక్ టాయిలెట్' },
+    { en: 'Dumping Near School/Temple', te: 'పాఠశాల/గుడి దగ్గర వ్యర్థాలు' },
+  ],
+  'Pest Control': [
+    { en: 'Severe Mosquito Menace', te: 'తీవ్రమైన దోమల ఉధృతి' },
+    { en: 'Fogging Machine Needed', te: 'ఫాగింగ్ మెషిన్ అవసరం' },
+    { en: 'Street Dogs Danger', te: 'వీధి కుక్కల భయం' },
+    { en: 'Stray Cattle Block', te: 'వీధి పశువుల అడ్డు' },
+    { en: 'Bleaching Powder Spraying', te: 'బ్లీచింగ్ పౌడర్ పిచికారీ' },
+  ],
+  'Electricity': [
+    { en: 'Loose Electric Hanging Wire', te: 'వదులుగా ఉన్న కరెంట్ తీగలు' },
+    { en: 'Frequent Power Outages', te: 'తరచుగా విద్యుత్ కోతలు' },
+    { en: 'Electricity Pole Damaged', te: 'కరెంట్ స్తంభం దెబ్బతింది' },
+    { en: 'Low Voltage Issue', te: 'తక్కువ వోల్టేజ్ సమస్య' },
+    { en: 'Sparking in Transformer', te: 'ట్రాన్స్‌ఫార్మర్‌లో మంటలు' },
+  ],
+  'Others': [
+    { en: 'Public Property Damaged', te: 'ప్రభుత్వ ఆస్తి నష్టం' },
+    { en: 'Encroachment of Space', te: 'స్థల ఆక్రమణ' },
+    { en: 'Noise Pollution Issue', te: 'శబ్ద కాలుష్య సమస్య' },
+    { en: 'Request for New Facility', te: 'కొత్త సౌకర్యం కోసం అభ్యర్థన' },
+  ]
+};
+
 interface FieldErrors {
   category?: string;
   title?: string;
@@ -238,6 +314,35 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
               })}
             </ScrollView>
             <FieldError msg={errors.category} />
+
+            {/* Quick Suggestion Capsules */}
+            {category ? (
+              <View style={styles.capsulesContainer}>
+                <Text style={styles.capsuleLabel}>
+                  {language === 'te' ? 'త్వరిత శీర్షికలు (ఎంచుకోవడానికి క్లిక్ చేయండి):' : 'Quick Titles (Tap to autofill):'}
+                </Text>
+                <View style={styles.capsulesWrapper}>
+                  {(TICKET_TITLE_CAPSULES[category] || []).map((cap, i) => {
+                    const capText = language === 'te' ? cap.te : cap.en;
+                    const isSelected = title === capText;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        style={[styles.capsuleChip, isSelected && styles.activeCapsuleChip]}
+                        onPress={() => {
+                          setTitle(capText);
+                          setErrors((p) => ({ ...p, title: undefined }));
+                        }}
+                      >
+                        <Text style={[styles.capsuleText, isSelected && styles.activeCapsuleText]}>
+                          {capText}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
 
             {/* Title Input */}
             <Text style={[styles.fieldLabel, { marginTop: 12 }]}>{language === 'te' ? 'సమస్య శీర్షిక' : 'Problem Title'} <Text style={styles.required}>*</Text></Text>
@@ -773,5 +878,41 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 14,
+  },
+  capsulesContainer: {
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  capsuleLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  capsulesWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  capsuleChip: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  activeCapsuleChip: {
+    backgroundColor: '#820263',
+    borderColor: '#820263',
+  },
+  capsuleText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  activeCapsuleText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 });
