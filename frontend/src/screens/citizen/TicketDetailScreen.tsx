@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Platform, Animated } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Platform, Animated, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomDateTimePicker from '../../components/CustomDateTimePicker';
 import { useAuth, API_BASE_URL, FILE_BASE_URL } from '../../context/AuthContext';
@@ -9,6 +9,7 @@ import { CATEGORIES_MAP } from './GenerateTicketScreen';
 import { COLORS, globalStyles } from '../../styles/theme';
 import { useSnackbar } from '../../context/SnackbarContext';
 import { getStatusColor } from './MyTicketsScreen';
+import MapView, { Marker } from 'react-native-maps';
 
 interface TimelineEvent {
   id: string;
@@ -29,6 +30,8 @@ interface TicketDetail {
   title: string;
   description: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   alternatePhone: string | null;
   issueImage: string | null;
   completionImage: string | null;
@@ -640,6 +643,49 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
         
         <Text style={styles.metaLabel}>{t('addressLocation')}</Text>
         <Text style={styles.metaVal}>{ticket.location}</Text>
+
+        {ticket.latitude !== null && ticket.longitude !== null && ticket.latitude !== undefined && ticket.longitude !== undefined && (
+          <View style={styles.mapCard}>
+            <MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: ticket.latitude,
+                longitude: ticket.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              }}
+              scrollEnabled={true}
+              zoomEnabled={true}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Marker
+                coordinate={{ latitude: ticket.latitude, longitude: ticket.longitude }}
+                title={ticket.title}
+                description={ticket.location}
+              />
+            </MapView>
+            <TouchableOpacity
+              style={styles.directionBtn}
+              onPress={() => {
+                const url = Platform.select({
+                  ios: `maps://app?daddr=${ticket.latitude},${ticket.longitude}`,
+                  android: `google.navigation:q=${ticket.latitude},${ticket.longitude}`,
+                });
+                if (url) {
+                  Linking.openURL(url).catch(() => {
+                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${ticket.latitude},${ticket.longitude}`);
+                  });
+                }
+              }}
+            >
+              <Ionicons name="navigate-circle-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.directionBtnText}>
+                {language === 'te' ? 'దిశలను పొందండి (గూగుల్ మ్యాప్స్)' : 'Get Directions (Google Maps)'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <Text style={styles.metaLabel}>{t('filedBy')}</Text>
         <Text style={styles.metaVal}>
@@ -1407,5 +1453,36 @@ const styles = StyleSheet.create({
     color: '#1F1F1F',
     fontWeight: '700',
     marginTop: 2,
+  },
+  mapCard: {
+    marginTop: 14,
+    marginBottom: 6,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  map: {
+    width: '100%',
+    height: 180,
+  },
+  directionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#820263', // Royal Plum
+    paddingVertical: 12,
+    gap: 6,
+  },
+  directionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

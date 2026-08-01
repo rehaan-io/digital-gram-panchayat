@@ -89,6 +89,8 @@ model Ticket {
   title             String
   description       String
   location          String
+  latitude          Float?
+  longitude         Float?
   alternatePhone    String?
   issueImage        String?            // File path or URL
   completionImage   String?            // File path or URL
