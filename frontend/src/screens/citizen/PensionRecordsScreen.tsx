@@ -44,7 +44,7 @@ const PensionRecordsScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL || 'https://digital-gram-panchayat-svj9.onrender.com/api'}/modules/pension-records?page=${page}&limit=20&search=${encodeURIComponent(searchQuery)}`,
+        `${process.env.EXPO_PUBLIC_API_URL || 'https://api.grampanchayat.digital/api'}/modules/pension-records?page=${page}&limit=20&search=${encodeURIComponent(searchQuery)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
