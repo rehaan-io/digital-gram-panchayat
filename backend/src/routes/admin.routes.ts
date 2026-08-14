@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { authenticateJWT, AuthenticatedRequest } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
-import { getUploadUrl } from '../config/storage';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -62,7 +61,7 @@ router.post('/employees', upload.single('photo'), async (req: AuthenticatedReque
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const photoUrl = req.file ? getUploadUrl(req.file.filename) : null;
+    const photoUrl = req.file ? req.file.path : null;
 
     // Create user and profile in transaction
     const newEmployeeUser = await prisma.user.create({

@@ -3,28 +3,32 @@ import { PrismaClient, TicketStatus, Role } from '@prisma/client';
 import { authenticateJWT, AuthenticatedRequest } from '../middleware/auth.middleware';
 import { upload, compressImage } from '../middleware/upload.middleware';
 import { NotificationService } from '../services/notification.service';
-import { getUploadUrl, urlToLocalPath } from '../config/storage';
+import cloudinary from '../config/cloudinary';
 import { WebSocketService } from '../services/websocket.service';
-import fs from 'fs';
 
 const router = Router();
 const prisma = new PrismaClient();
 
-/**
- * Safely deletes a locally-stored upload file.
- * Skips if the URL is null or does not point to the local uploads path.
- */
-const deleteLocalImage = (url: string | null): void => {
-  if (!url) return;
-  const localPath = urlToLocalPath(url);
-  if (!localPath) return;
+const deleteCloudinaryImage = async (url: string | null) => {
+  if (!url || !url.includes('cloudinary.com')) return;
   try {
-    if (fs.existsSync(localPath)) {
-      fs.unlinkSync(localPath);
-      console.log('Deleted local image:', localPath);
+    const parts = url.split('/');
+    const uploadIndex = parts.indexOf('upload');
+    if (uploadIndex === -1) return;
+    
+    let publicIdParts = parts.slice(uploadIndex + 1);
+    if (publicIdParts[0].startsWith('v') && !isNaN(Number(publicIdParts[0].substring(1)))) {
+      publicIdParts = publicIdParts.slice(1);
     }
+    const filenameWithExt = publicIdParts.join('/');
+    const lastDotIndex = filenameWithExt.lastIndexOf('.');
+    const publicId = lastDotIndex !== -1 ? filenameWithExt.substring(0, lastDotIndex) : filenameWithExt;
+    
+    console.log('[Cloudinary] Deleting image with public_id:', publicId);
+    const result = await cloudinary.uploader.destroy(publicId);
+    console.log('[Cloudinary] Destroy result:', result);
   } catch (error) {
-    console.error('Failed to delete local image:', localPath, error);
+    console.error('[Cloudinary] Failed to delete image:', error);
   }
 };
 
@@ -33,7 +37,28 @@ const deleteLocalImage = (url: string | null): void => {
 router.post(
   '/',
   authenticateJWT,
+  (req: AuthenticatedRequest, res: Response, next) => {
+    console.log('[Ticket] Upload request received');
+    console.log('[Ticket] Content-Type:', req.headers['content-type']);
+    console.log('[Ticket] Authorization header present:', !!req.headers.authorization);
+    next();
+  },
   upload.single('image'),
+  (req: AuthenticatedRequest, res: Response, next) => {
+    // This runs AFTER multer/Cloudinary finishes (or fails)
+    if (req.file) {
+      console.log('[Ticket] File received by multer:');
+      console.log('[Ticket]   fieldname:', req.file.fieldname);
+      console.log('[Ticket]   mimetype :', req.file.mimetype);
+      console.log('[Ticket]   size     :', req.file.size, 'bytes');
+      console.log('[Ticket]   path/url :', req.file.path);
+      console.log('[Ticket]   filename :', req.file.filename);
+      console.log('[Ticket] Cloudinary upload SUCCESS — URL:', req.file.path);
+    } else {
+      console.log('[Ticket] No file in request (ticket without image)');
+    }
+    next();
+  },
   compressImage,
   async (req: AuthenticatedRequest, res: Response) => {
     if (req.user?.role !== 'CITIZEN') {
@@ -67,8 +92,9 @@ router.post(
       const randomId = Math.floor(100000 + Math.random() * 900000);
       const ticketId = `TKT-${randomId}`;
 
-      // Save ticket in DB using the public VPS URL for the uploaded file
-      const imageUrl = req.file ? getUploadUrl(req.file.filename) : null;
+      // Save ticket in DB using Cloudinary secure_url (populated in req.file.path by multer-storage-cloudinary)
+      const imageUrl = req.file ? req.file.path : null;
+      console.log('[Ticket] imageUrl to save to DB:', imageUrl);
 
       const ticket = await prisma.ticket.create({
         data: {
@@ -323,7 +349,8 @@ router.patch(
       }
 
       if (targetStatus === 'COMPLETED' && req.file) {
-        updateData.completionImage = getUploadUrl(req.file.filename);
+        updateData.completionImage = req.file.path; // Cloudinary secure_url
+        console.log('[Ticket] completionImage saved:', req.file.path);
         updateData.remarks = remarks;
       }
 
@@ -337,9 +364,13 @@ router.patch(
       }
 
       if (targetStatus === 'CLOSED') {
-        // Delete locally stored images from the VPS uploads directory
-        deleteLocalImage(ticket.issueImage);
-        deleteLocalImage(ticket.completionImage);
+        // Delete uploaded images from Cloudinary
+        if (ticket.issueImage) {
+          await deleteCloudinaryImage(ticket.issueImage);
+        }
+        if (ticket.completionImage) {
+          await deleteCloudinaryImage(ticket.completionImage);
+        }
         updateData.issueImage = null;
         updateData.completionImage = null;
         updateData.remarks = remarks || 'Ticket closed and media deleted from server.';
