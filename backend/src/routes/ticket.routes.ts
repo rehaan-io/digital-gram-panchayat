@@ -44,7 +44,7 @@ router.post(
       return res.status(403).json({ message: 'Only citizens can create tickets.' });
     }
 
-    const { category, title, description, location, alternatePhone, latitude, longitude } = req.body;
+    const { category, title, description, location, alternatePhone } = req.body;
 
     if (!category || !title || !description || !location) {
       return res.status(400).json({ message: 'Required fields are missing.' });
@@ -74,9 +74,6 @@ router.post(
       // Save ticket in DB using Cloudinary secure_url (which is populated in req.file.path by multer-storage-cloudinary)
       const imageUrl = req.file ? req.file.path : null;
 
-      const lat = latitude ? parseFloat(latitude as string) : null;
-      const lng = longitude ? parseFloat(longitude as string) : null;
-
       const ticket = await prisma.ticket.create({
         data: {
           ticketId,
@@ -85,8 +82,6 @@ router.post(
           title,
           description,
           location,
-          latitude: isNaN(Number(lat)) ? null : lat,
-          longitude: isNaN(Number(lng)) ? null : lng,
           alternatePhone: alternatePhone || null,
           issueImage: imageUrl,
           status: 'PENDING',

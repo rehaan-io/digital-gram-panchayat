@@ -1,194 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-enum Role {
-  CITIZEN
-  EMPLOYEE
-  ADMIN
-}
-
-enum TicketStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-  ASSIGNED
-  ON_WAY
-  IN_PROGRESS
-  COMPLETED
-  VERIFIED
-  CLOSED
-}
-
 model User {
-  id                String             @id @default(uuid())
-  username          String             @unique
-  email             String             @unique
+  id                String           @id @default(uuid())
+  username          String           @unique
+  email             String           @unique
   phone             String
   password          String
   fullName          String
-  role              Role               @default(CITIZEN)
-  isVerified        Boolean            @default(false)
+  role              Role             @default(CITIZEN)
+  isVerified        Boolean          @default(false)
   verificationToken String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
   fcmToken          String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  
-  // Relations
+  announcements     Announcement[]   @relation("AdminAnnouncements")
   employeeProfile   Employee?
-  ticketsCreated    Ticket[]           @relation("CitizenTickets")
   notifications     Notification[]
-  announcements     Announcement[]     @relation("AdminAnnouncements")
-  timelineActions   TicketTimeline[]   @relation("TimelineActor")
-}
-
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  ticketsCreated    Ticket[]         @relation("CitizenTickets")
+  timelineActions   TicketTimeline[] @relation("TimelineActor")
 }
 
 model Employee {
-  id                String             @id @default(uuid())
-  employeeId        String             @unique // E.g., EMP-2026-0001
-  userId            String             @unique
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department        String?
-  photo             String?            // Optional staff photo URL
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-
-  // Relations
-  assignedTickets   Ticket[]           @relation("EmployeeTickets")
-  leaves            Leave[]
+  id              String   @id @default(uuid())
+  employeeId      String   @unique
+  userId          String   @unique
+  department      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  photo           String?
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaves          Leave[]
+  assignedTickets Ticket[] @relation("EmployeeTickets")
 }
 
 model Leave {
-  id                String             @id @default(uuid())
-  employeeId        String
-  employee          Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  startDate         DateTime
-  endDate           DateTime
-  reason            String             @db.Text
-  status            LeaveStatus        @default(PENDING)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id         String      @id @default(uuid())
+  employeeId String
+  startDate  DateTime
+  endDate    DateTime
+  reason     String
+  status     LeaveStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Ticket {
-  id                String             @id @default(uuid())
-  ticketId          String             @unique // E.g., TKT-171829
-  citizenId         String
-  citizen           User               @relation("CitizenTickets", fields: [citizenId], references: [id], onDelete: Cascade)
-  category          String             // Road, Street Light, Garbage, Water Supply, Drainage, Hygiene, Pest Control, Electricity, Others
-  title             String
-  description       String
-  location          String
-  latitude          Float?
-  longitude         Float?
-  alternatePhone    String?
-  issueImage        String?            // File path or URL
-  completionImage   String?            // File path or URL
-  status            TicketStatus       @default(PENDING)
-  rejectReason      String?
-  remarks           String?
+  id                 String           @id @default(uuid())
+  ticketId           String           @unique
+  citizenId          String
+  category           String
+  title              String
+  description        String
+  location           String
+  alternatePhone     String?
+  issueImage         String?
+  completionImage    String?
+  status             TicketStatus     @default(PENDING)
+  rejectReason       String?
+  remarks            String?
   expectedCompletion DateTime?
-  employeeId        String?
-  assignedEmployee  Employee?          @relation("EmployeeTickets", fields: [employeeId], references: [id], onDelete: SetNull)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  deletedByCitizen  Boolean            @default(false)
-
-  // Relations
-  timeline          TicketTimeline[]
-  notifications     Notification[]     @relation("TicketNotifications")
+  employeeId         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedByCitizen   Boolean          @default(false)
+  notifications      Notification[]   @relation("TicketNotifications")
+  citizen            User             @relation("CitizenTickets", fields: [citizenId], references: [id], onDelete: Cascade)
+  assignedEmployee   Employee?        @relation("EmployeeTickets", fields: [employeeId], references: [id])
+  timeline           TicketTimeline[]
 }
 
 model TicketTimeline {
-  id                 String             @id @default(uuid())
+  id                 String       @id @default(uuid())
   ticketId           String
-  ticket             Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   status             TicketStatus
   remarks            String?
   expectedCompletion DateTime?
   actorId            String
-  actor              User               @relation("TimelineActor", fields: [actorId], references: [id])
-  createdAt          DateTime           @default(now())
+  createdAt          DateTime     @default(now())
+  actor              User         @relation("TimelineActor", fields: [actorId], references: [id])
+  ticket             Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
 model Announcement {
   id        String   @id @default(uuid())
   title     String
-  titleTe   String?
-  content   String   @db.Text
-  contentTe String?  @db.Text
+  content   String
   adminId   String
-  admin     User     @relation("AdminAnnouncements", fields: [adminId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  contentTe String?
+  titleTe   String?
+  admin     User     @relation("AdminAnnouncements", fields: [adminId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ticketId  String?
-  ticket    Ticket?  @relation("TicketNotifications", fields: [ticketId], references: [id], onDelete: Cascade)
   title     String
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+  ticket    Ticket?  @relation("TicketNotifications", fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model HomepageSection {
   id        String   @id @default(uuid())
-  key       String   @unique // E.g., about, water_supply, street_lights, education, health, agriculture, welfare_schemes, staff, announcements, emergency_contacts, pensions, anganwadi, mgnregs, horticulture, animal_husbandry, shg_vo, community_assets
+  key       String   @unique
   title     String
-  titleTe   String?
-  content   String   @db.Text
-  contentTe String?  @db.Text
+  content   String
   updatedAt DateTime @updatedAt
+  contentTe String?
+  titleTe   String?
 }
 
 model AboutGP {
-  id                 String   @id @default(uuid())
-  gpName             String
-  mandal             String
-  district           String
-  formationDetails   String
-  proceedingsNumber  String
-  gpExtent           String
-  panchayatSecretary String
-  executiveOfficer   String
-  malePopulation     Int
-  femalePopulation   Int
-  population         Int      // Male + Female
-  scPopulation       Int
-  stPopulation       Int
-  totalAssessments   Int
-  auditStatus        String
-  apiicEstate37      String   @default("-")
-  apiicEstate04      String   @default("-")
-  apiicTotalAcres    String   @default("-")
-  savingsTarget      String   @default("-")
-  savingsAchievement String   @default("-")
-  savingsPercentage  String   @default("-")
-  misappropriationCases String @default("-")
-  misappropriationAmount String @default("-")
-  recoveryAmount     String   @default("-")
-  fposInGp           String   @default("-")
-  sriNidhiLoansGranted String @default("-")
-  sriNidhiAmount     String   @default("-")
-  npa                String   @default("-")
-  pnpa               String   @default("-")
-  communityHallLocation String @default("-")
-  libraryLocation    String   @default("-")
-  updatedAt          DateTime @updatedAt
+  id                     String   @id @default(uuid())
+  gpName                 String
+  mandal                 String
+  district               String
+  formationDetails       String
+  proceedingsNumber      String
+  gpExtent               String
+  panchayatSecretary     String
+  executiveOfficer       String
+  malePopulation         Int
+  femalePopulation       Int
+  population             Int
+  scPopulation           Int
+  stPopulation           Int
+  totalAssessments       Int
+  auditStatus            String
+  updatedAt              DateTime @updatedAt
+  apiicEstate04          String   @default("-")
+  apiicEstate37          String   @default("-")
+  apiicTotalAcres        String   @default("-")
+  communityHallLocation  String   @default("-")
+  fposInGp               String   @default("-")
+  libraryLocation        String   @default("-")
+  misappropriationAmount String   @default("-")
+  misappropriationCases  String   @default("-")
+  npa                    String   @default("-")
+  pnpa                   String   @default("-")
+  recoveryAmount         String   @default("-")
+  savingsAchievement     String   @default("-")
+  savingsPercentage      String   @default("-")
+  savingsTarget          String   @default("-")
+  sriNidhiAmount         String   @default("-")
+  sriNidhiLoansGranted   String   @default("-")
 }
 
 model CustomSectionField {
@@ -201,38 +169,38 @@ model CustomSectionField {
 }
 
 model Official {
-  id              String   @id @default(uuid())
-  name            String
-  nameTe          String?
-  designation     String
-  designationTe   String?
-  phoneNumber     String
-  office          String
+  id               String   @id @default(uuid())
+  name             String
+  designation      String
+  phoneNumber      String
+  office           String
   responsibilities String
-  photo           String?
-  status          String   // e.g., ACTIVE, INACTIVE
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  photo            String?
+  status           String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  designationTe    String?
+  nameTe           String?
 }
 
 model WaterDetails {
-  id                 String   @id @default(uuid())
-  totalWaterSchemes  Int
-  privateConnections Int
-  publicConnections  Int
-  handPumps          Int
+  id                  String   @id @default(uuid())
+  totalWaterSchemes   Int
+  privateConnections  Int
+  publicConnections   Int
+  handPumps           Int
   privateTapFeeDemand Float
-  totalOHSRs         Int
-  totalGLSRs         Int
-  totalDirectPumping Int
-  updatedAt          DateTime @updatedAt
+  totalOHSRs          Int
+  totalGLSRs          Int
+  totalDirectPumping  Int
+  updatedAt           DateTime @updatedAt
 }
 
 model OHSR {
   id              String   @id @default(uuid())
   name            String
-  capacity        Float    // In Lakh Lts
-  pumpingCapacity Float?   // In HP or Lts/hr
+  capacity        Float
+  pumpingCapacity Float?
   location        String
   remarks         String?
   createdAt       DateTime @default(now())
@@ -242,7 +210,7 @@ model OHSR {
 model GLSR {
   id              String   @id @default(uuid())
   name            String
-  capacity        Float    // In Lakh Lts
+  capacity        Float
   pumpingCapacity Float?
   location        String
   remarks         String?
@@ -251,67 +219,67 @@ model GLSR {
 }
 
 model DirectPumping {
-  id              String   @id @default(uuid())
-  pumpName        String
-  source          String
-  capacity        Float
-  status          String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(uuid())
+  pumpName  String
+  source    String
+  capacity  Float
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StreetLightDetails {
-  id             String   @id @default(uuid())
-  totalPoles     Int
-  totalLEDs      Int
-  lightingStaff  Int
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid())
+  totalPoles    Int
+  totalLEDs     Int
+  lightingStaff Int
+  updatedAt     DateTime @updatedAt
 }
 
 model StreetLightAsset {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   area            String
   poleCount       Int
   ledCount        Int
   workingStatus   String
   lastMaintenance DateTime?
   remarks         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model TaxRevenue {
-  id                 String   @id @default(uuid())
-  financialYear      String
-  houseTax           Float
-  libraryCess        Float
-  waterTax           Float
-  lightingTax        Float
-  drainageTax        Float
-  sportsTax          Float
-  fireCess           Float
-  totalDemand        Float    // houseTax + libraryCess + waterTax + lightingTax + drainageTax + sportsTax + fireCess
-  houseTaxCollection Float
-  collectionPercentage Float  // (houseTaxCollection / houseTax) * 100
-  nonTaxDemand       Float
-  nonTaxCollection   Float
-  pendingAmount      Float    // (totalDemand - houseTaxCollection)
-  generalFund        Float
-  tfc                Float
-  sfc                Float
-  ffc                Float
-  fifteenthFC        Float    // 15th Finance Commission
-  otherGrants        Float
-  updatedAt          DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  financialYear        String
+  houseTax             Float
+  libraryCess          Float
+  waterTax             Float
+  lightingTax          Float
+  drainageTax          Float
+  sportsTax            Float
+  fireCess             Float
+  totalDemand          Float
+  houseTaxCollection   Float
+  collectionPercentage Float
+  nonTaxDemand         Float
+  nonTaxCollection     Float
+  pendingAmount        Float
+  generalFund          Float
+  tfc                  Float
+  sfc                  Float
+  ffc                  Float
+  fifteenthFC          Float
+  otherGrants          Float
+  updatedAt            DateTime @updatedAt
 }
 
 model HealthDetails {
-  id             String   @id @default(uuid())
-  hospitalName   String
-  healthCentre   String
-  ashaWorkers    Int
-  anms           Int
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid())
+  hospitalName String
+  healthCentre String
+  ashaWorkers  Int
+  anms         Int
+  updatedAt    DateTime @updatedAt
 }
 
 model HealthStaff {
@@ -326,16 +294,16 @@ model HealthStaff {
 }
 
 model School {
-  id          String   @id @default(uuid())
-  schoolName  String
-  type        String   // GOVT, PRIVATE
-  category    String   // Primary, Upper Primary, High School, Junior College, Degree College
-  location    String
-  boys        Int
-  girls       Int
-  total       Int      // boys + girls
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  schoolName String
+  type       String
+  category   String
+  location   String
+  boys       Int
+  girls      Int
+  total      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model AnganwadiCentre {
@@ -344,7 +312,7 @@ model AnganwadiCentre {
   location   String
   boys       Int
   girls      Int
-  total      Int      // boys + girls
+  total      Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -357,17 +325,17 @@ model AnganwadiStats {
 }
 
 model MgnregsDetails {
-  id             String   @id @default(uuid())
-  jobCards       Int
-  activeJobCards Int
-  works          Int
-  estimateCost   Float
-  gokulamSheds   Int
-  sramikaSanghalu Int
-  completedGokulam Int
+  id                String   @id @default(uuid())
+  jobCards          Int
+  activeJobCards    Int
+  works             Int
+  estimateCost      Float
+  gokulamSheds      Int
+  sramikaSanghalu   Int
+  completedGokulam  Int
   inProgressGokulam Int
   notStartedGokulam Int
-  updatedAt      DateTime @updatedAt
+  updatedAt         DateTime @updatedAt
 }
 
 model MgnregsWork {
@@ -383,7 +351,7 @@ model MgnregsWork {
 
 model PensionCategory {
   id            String   @id @default(uuid())
-  category      String   // OAP, Widow, Disabled, Weavers, etc.
+  category      String
   beneficiaries Int
   monthlyAmount Float
   remarks       String?
@@ -392,56 +360,56 @@ model PensionCategory {
 }
 
 model AgricultureStats {
-  id                        String   @id @default(uuid())
-  cultivableLand            Float
-  rabiArea                  Float
-  landSown                  Float
-  groundnutQuintals         Float
-  polamBadies               Int
-  samplesCollected          Int
-  samplesAnalysed           Int
-  soilCards                 Int
-  pmKisan                   Int
-  amountPaid                Float
-  cropInsuranceFarmers      Int      @default(0)
-  heavyRainAffectedFarmers  Int      @default(0)
-  heavyRainDamageArea       Float    @default(0.0)
-  heavyRainDamageAmount     Float    @default(0.0)
-  updatedAt                 DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  cultivableLand           Float
+  rabiArea                 Float
+  landSown                 Float
+  groundnutQuintals        Float
+  polamBadies              Int
+  samplesCollected         Int
+  samplesAnalysed          Int
+  soilCards                Int
+  pmKisan                  Int
+  amountPaid               Float
+  updatedAt                DateTime @updatedAt
+  cropInsuranceFarmers     Int      @default(0)
+  heavyRainAffectedFarmers Int      @default(0)
+  heavyRainDamageAmount    Float    @default(0.0)
+  heavyRainDamageArea      Float    @default(0.0)
 }
 
 model HorticultureStats {
-  id             String   @id @default(uuid())
-  area           Float
-  production     Float
-  midhPhysical   Int
-  midhTotal      Float
-  rkvmPhysical   Int
-  rkvmTotal      Float
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid())
+  area         Float
+  production   Float
+  midhPhysical Int
+  midhTotal    Float
+  rkvmPhysical Int
+  rkvmTotal    Float
+  updatedAt    DateTime @updatedAt
 }
 
 model AnimalHusbandryStats {
-  id             String   @id @default(uuid())
-  cattle         Int
-  buffaloes      Int
-  sheep          Int
-  goats          Int
-  vaccination    Float
-  insurance      Float
-  projects       Float
-  subsidy        Float
-  fodderDev      Float
-  targetFodder   Float
+  id                 String   @id @default(uuid())
+  cattle             Int
+  buffaloes          Int
+  sheep              Int
+  goats              Int
+  vaccination        Float
+  insurance          Float
+  projects           Float
+  subsidy            Float
+  fodderDev          Float
+  targetFodder       Float
   pashubheemaInsured Int
   treatedSanchara    Int
   gokulamInaugurated Int
   gokulamSanctioned  Int
-  nlmSanctioned  Int
-  nlmCompleted   Int
-  nlmInProgress  Int
-  nlmSubsidy     Float
-  updatedAt      DateTime @updatedAt
+  nlmSanctioned      Int
+  nlmCompleted       Int
+  nlmInProgress      Int
+  nlmSubsidy         Float
+  updatedAt          DateTime @updatedAt
 }
 
 model VoGroup {
@@ -495,3 +463,26 @@ model PensionRecord {
   updatedAt    DateTime @updatedAt
 }
 
+enum Role {
+  CITIZEN
+  EMPLOYEE
+  ADMIN
+}
+
+enum TicketStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  ASSIGNED
+  ON_WAY
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+  CLOSED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
