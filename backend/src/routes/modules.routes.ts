@@ -2,6 +2,7 @@ import { Router, Request, Response, RequestHandler } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateJWT, AuthenticatedRequest, requireRole } from '../middleware/auth.middleware';
 import { upload, compressImage } from '../middleware/upload.middleware';
+import { getUploadUrl } from '../config/storage';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -72,7 +73,7 @@ router.post('/officials', ...requireAdmin, upload.single('photo'), compressImage
   try {
     const data = { ...req.body };
     if (req.file) {
-      data.photo = req.file.path; // Cloudinary secure_url
+      data.photo = getUploadUrl(req.file.filename);
     }
     const official = await prisma.official.create({ data });
     return res.status(201).json(official);
@@ -85,7 +86,7 @@ router.put('/officials/:id', ...requireAdmin, upload.single('photo'), compressIm
   try {
     const data = { ...req.body };
     if (req.file) {
-      data.photo = req.file.path; // Cloudinary secure_url
+      data.photo = getUploadUrl(req.file.filename);
     }
     const official = await prisma.official.update({
       where: { id: req.params.id },
