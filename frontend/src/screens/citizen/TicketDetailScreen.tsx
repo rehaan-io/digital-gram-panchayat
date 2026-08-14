@@ -144,38 +144,38 @@ const SnakeTimeline = ({ timeline, language, t, getStatusLocalized, onPressRemar
                    {/* PATHWAY TOP LAYER */}
                    <View style={styles.pathwayTopLayer}>
                      
-                     {/* Horizontal Line connecting to next item in row */}
-                     {!isLastInRow && (
-                       <Animated.View style={[
-                         styles.pathwayHorizontalLine, 
-                         isEven ? { left: '50%' } : { right: '50%' },
-                         { 
-                           width: fadeAnim[globalIndex].interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
-                         }
-                       ]} />
-                     )}
+                      {/* Horizontal Line connecting to next item in row */}
+                      {!isLastInRow && (
+                        <Animated.View style={[
+                          styles.pathwayHorizontalLine, 
+                          isEven ? { left: '50%' } : { right: '50%' },
+                          { 
+                            width: '100%',
+                            opacity: fadeAnim[globalIndex]
+                          }
+                        ]} />
+                      )}
 
-                     {/* Pulsing Glow behind the node for the latest event */}
-                     {isLatestEvent && (
-                       <Animated.View style={[styles.pathwayNodeGlow, {
-                          backgroundColor: statusTheme.text,
-                          opacity: pulseAnim.interpolate({ inputRange: [1, 1.8], outputRange: [0.6, 0] }),
-                          transform: [{ scale: pulseAnim }]
-                       }]} />
-                     )}
+                      {/* Pulsing Glow behind the node for the latest event */}
+                      {isLatestEvent && (
+                        <Animated.View style={[styles.pathwayNodeGlow, {
+                           backgroundColor: statusTheme.text,
+                           opacity: pulseAnim.interpolate({ inputRange: [1, 1.8], outputRange: [0.6, 0] }),
+                           transform: [{ scale: pulseAnim }]
+                        }]} />
+                      )}
 
-                     {/* The Filled Node Circle */}
-                     <Animated.View style={[styles.pathwayNode, { 
-                        backgroundColor: statusTheme.text,
-                        transform: [{ scale: fadeAnim[globalIndex] }]
-                     }]} />
-                   </View>
+                      {/* The Filled Node Circle */}
+                      <Animated.View style={[styles.pathwayNode, { 
+                         backgroundColor: statusTheme.text,
+                         transform: [{ scale: fadeAnim[globalIndex] }]
+                      }]} />
+                    </View>
 
-                   {/* Vertical Stem connecting node to card */}
-                   <Animated.View style={[styles.pathwayStem, {
-                      height: fadeAnim[globalIndex].interpolate({ inputRange: [0, 1], outputRange: [0, 15] }),
-                      opacity: fadeAnim[globalIndex]
-                   }]} />
+                    {/* Vertical Stem connecting node to card */}
+                    <Animated.View style={[styles.pathwayStem, {
+                       opacity: fadeAnim[globalIndex]
+                    }]} />
                    
                    {/* Card Content */}
                    <Animated.View style={[styles.snakeCard, { 
@@ -1257,8 +1257,8 @@ const styles = StyleSheet.create({
   },
   pathwayStem: {
     width: 2,
+    height: 15,
     backgroundColor: '#D2C4C0',
-    // height is animated
   },
   snakeCard: {
     width: '100%',
