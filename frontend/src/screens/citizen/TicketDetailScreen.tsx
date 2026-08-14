@@ -54,17 +54,13 @@ interface TicketDetail {
   timeline: TimelineEvent[];
 }
 
-const SnakeTimeline = ({ timeline, language, t, getStatusLocalized }: { timeline: TimelineEvent[], language: string, t: any, getStatusLocalized: any }) => {
+const SnakeTimeline = ({ timeline, language, t, getStatusLocalized, onPressRemarks }: { timeline: TimelineEvent[], language: string, t: any, getStatusLocalized: any, onPressRemarks: (title: string, content: string, date: string) => void }) => {
   // Use useMemo to recreate Animated.Values if the timeline length changes (e.g. after data loads)
   const fadeAnim = React.useMemo(() => {
     return Array.from({ length: timeline?.length || 0 }).map(() => new Animated.Value(0));
   }, [timeline?.length]);
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  // State for the beautiful remarks modal
-  const [remarksModalVisible, setRemarksModalVisible] = useState(false);
-  const [selectedRemarks, setSelectedRemarks] = useState({ title: '', content: '', date: '' });
 
   const latestEventId = React.useMemo(() => {
     if (!timeline || timeline.length === 0) return null;
@@ -191,12 +187,11 @@ const SnakeTimeline = ({ timeline, language, t, getStatusLocalized }: { timeline
                         style={styles.snakeCardInner}
                         activeOpacity={0.7}
                         onPress={() => {
-                          setSelectedRemarks({
-                            title: getStatusLocalized(event.status),
-                            content: event.remarks || (language === 'te' ? 'ఎలాంటి వ్యాఖ్యలు లేవు.' : 'No remarks provided.'),
-                            date: `${new Date(event.createdAt).toLocaleDateString()} ${new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
-                          });
-                          setRemarksModalVisible(true);
+                          onPressRemarks(
+                            getStatusLocalized(event.status),
+                            event.remarks || (language === 'te' ? 'ఎలాంటి వ్యాఖ్యలు లేవు.' : 'No remarks provided.'),
+                            `${new Date(event.createdAt).toLocaleDateString()} ${new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+                          );
                         }}
                       >
                         <View style={[styles.snakeBadge, { backgroundColor: statusTheme.bg }]}>
@@ -232,36 +227,6 @@ const SnakeTimeline = ({ timeline, language, t, getStatusLocalized }: { timeline
           </View>
         )
       })}
-
-      {/* Beautiful Bottom Sheet Modal for Remarks */}
-      <Modal visible={remarksModalVisible} transparent animationType="slide">
-        <View style={styles.bottomSheetOverlay}>
-          <TouchableOpacity style={styles.bottomSheetDismiss} activeOpacity={1} onPress={() => setRemarksModalVisible(false)} />
-          <View style={styles.bottomSheetCard}>
-            <View style={styles.bottomSheetHandle} />
-            <View style={styles.bottomSheetHeader}>
-              <View style={styles.bottomSheetIconBadge}>
-                <Ionicons name="chatbubbles" size={26} color={COLORS.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.bottomSheetTitle}>{language === 'te' ? 'వ్యాఖ్యలు' : 'Activity Remarks'}</Text>
-                <Text style={styles.bottomSheetSubtitle}>{selectedRemarks.title} • {selectedRemarks.date}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.bottomSheetContentContainer}>
-              <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
-                <Text style={styles.bottomSheetContentText}>{selectedRemarks.content}</Text>
-              </ScrollView>
-            </View>
-
-            <TouchableOpacity style={styles.bottomSheetCloseBtn} onPress={() => setRemarksModalVisible(false)}>
-              <Text style={styles.bottomSheetCloseText}>{language === 'te' ? 'మూసివేయు' : 'Dismiss'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
     </View>
   );
 };
@@ -317,6 +282,8 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [remarksModalVisible, setRemarksModalVisible] = useState(false);
+  const [selectedRemarks, setSelectedRemarks] = useState({ title: '', content: '', date: '' });
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -849,10 +816,14 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
         <View style={styles.divider} />
 
         <SnakeTimeline 
-          timeline={ticket.timeline} 
+          timeline={ticket.timeline || []} 
           language={language} 
           t={t} 
           getStatusLocalized={getStatusLocalized} 
+          onPressRemarks={(title, content, date) => {
+            setSelectedRemarks({ title, content, date });
+            setRemarksModalVisible(true);
+          }}
         />
       </View>
 
@@ -930,6 +901,35 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
                 <Text style={styles.saveText}>{language === 'te' ? 'కేటాయించు' : 'Assign Staff'}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Beautiful Bottom Sheet Modal for Remarks */}
+      <Modal visible={remarksModalVisible} transparent animationType="slide">
+        <View style={styles.bottomSheetOverlay}>
+          <TouchableOpacity style={styles.bottomSheetDismiss} activeOpacity={1} onPress={() => setRemarksModalVisible(false)} />
+          <View style={styles.bottomSheetCard}>
+            <View style={styles.bottomSheetHandle} />
+            <View style={styles.bottomSheetHeader}>
+              <View style={styles.bottomSheetIconBadge}>
+                <Ionicons name="chatbubbles" size={26} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bottomSheetTitle}>{language === 'te' ? 'వ్యాఖ్యలు' : 'Activity Remarks'}</Text>
+                <Text style={styles.bottomSheetSubtitle}>{selectedRemarks.title} • {selectedRemarks.date}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.bottomSheetContentContainer}>
+              <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.bottomSheetContentText}>{selectedRemarks.content}</Text>
+              </ScrollView>
+            </View>
+
+            <TouchableOpacity style={styles.bottomSheetCloseBtn} onPress={() => setRemarksModalVisible(false)}>
+              <Text style={styles.bottomSheetCloseText}>{language === 'te' ? 'మూసివేయు' : 'Dismiss'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
