@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "migrate:cloudinary": "ts-node scripts/migrate_cloudinary.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
