@@ -118,7 +118,6 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [alternatePhone, setAlternatePhone] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,10 +149,10 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         showSnackbar('Location access is required to use this feature.', 'warning');
         return;
       }
-      const locationData = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const coords = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const [address] = await Location.reverseGeocodeAsync({
-        latitude: locationData.coords.latitude,
-        longitude: locationData.coords.longitude,
+        latitude: coords.coords.latitude,
+        longitude: coords.coords.longitude,
       });
 
       const parts = [
@@ -167,7 +166,6 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
       const fullAddress = parts.join(', ');
       setLocation(fullAddress);
-      setCoords({ latitude: locationData.coords.latitude, longitude: locationData.coords.longitude });
       setErrors((prev) => ({ ...prev, location: undefined }));
     } catch (err) {
       showSnackbar('Could not fetch location. Please enter it manually.', 'error');
@@ -201,8 +199,7 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
             title: title.trim(),
             description: description.trim(),
             location: location.trim(),
-            ...(alternatePhone.trim() ? { alternatePhone: alternatePhone.trim() } : {}),
-            ...(coords ? { latitude: coords.latitude.toString(), longitude: coords.longitude.toString() } : {})
+            ...(alternatePhone.trim() ? { alternatePhone: alternatePhone.trim() } : {})
           },
           headers: {
             Authorization: `Bearer ${token}`,
@@ -226,10 +223,6 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         formData.append('description', description.trim());
         formData.append('location', location.trim());
         if (alternatePhone.trim()) formData.append('alternatePhone', alternatePhone.trim());
-        if (coords) {
-          formData.append('latitude', coords.latitude.toString());
-          formData.append('longitude', coords.longitude.toString());
-        }
 
         const response = await fetch(`${API_BASE_URL}/tickets`, {
           method: 'POST',
@@ -246,7 +239,7 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
 
       // Reset form
       setCategory(''); setTitle(''); setDescription('');
-      setLocation(''); setAlternatePhone(''); setImageUri(null); setCoords(null); setErrors({});
+      setLocation(''); setAlternatePhone(''); setImageUri(null); setErrors({});
 
     } catch (error: any) {
       showSnackbar(error.message || 'An error occurred.', 'error');

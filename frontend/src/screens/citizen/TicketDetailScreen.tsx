@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Platform, Animated, Linking } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomDateTimePicker from '../../components/CustomDateTimePicker';
 import { useAuth, API_BASE_URL, FILE_BASE_URL } from '../../context/AuthContext';
@@ -29,8 +29,6 @@ interface TicketDetail {
   title: string;
   description: string;
   location: string;
-  latitude?: number | null;
-  longitude?: number | null;
   alternatePhone: string | null;
   issueImage: string | null;
   completionImage: string | null;
@@ -56,13 +54,17 @@ interface TicketDetail {
   timeline: TimelineEvent[];
 }
 
-const SnakeTimeline = ({ timeline, language, t, getStatusLocalized, onPressRemarks }: { timeline: TimelineEvent[], language: string, t: any, getStatusLocalized: any, onPressRemarks: (title: string, content: string, date: string) => void }) => {
+const SnakeTimeline = ({ timeline, language, t, getStatusLocalized }: { timeline: TimelineEvent[], language: string, t: any, getStatusLocalized: any }) => {
   // Use useMemo to recreate Animated.Values if the timeline length changes (e.g. after data loads)
   const fadeAnim = React.useMemo(() => {
     return Array.from({ length: timeline?.length || 0 }).map(() => new Animated.Value(0));
   }, [timeline?.length]);
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // State for the beautiful remarks modal
+  const [remarksModalVisible, setRemarksModalVisible] = useState(false);
+  const [selectedRemarks, setSelectedRemarks] = useState({ title: '', content: '', date: '' });
 
   const latestEventId = React.useMemo(() => {
     if (!timeline || timeline.length === 0) return null;
@@ -146,38 +148,38 @@ const SnakeTimeline = ({ timeline, language, t, getStatusLocalized, onPressRemar
                    {/* PATHWAY TOP LAYER */}
                    <View style={styles.pathwayTopLayer}>
                      
-                      {/* Horizontal Line connecting to next item in row */}
-                      {!isLastInRow && (
-                        <Animated.View style={[
-                          styles.pathwayHorizontalLine, 
-                          isEven ? { left: '50%' } : { right: '50%' },
-                          { 
-                            width: '100%',
-                            opacity: fadeAnim[globalIndex]
-                          }
-                        ]} />
-                      )}
+                     {/* Horizontal Line connecting to next item in row */}
+                     {!isLastInRow && (
+                       <Animated.View style={[
+                         styles.pathwayHorizontalLine, 
+                         isEven ? { left: '50%' } : { right: '50%' },
+                         { 
+                           width: fadeAnim[globalIndex].interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
+                         }
+                       ]} />
+                     )}
 
-                      {/* Pulsing Glow behind the node for the latest event */}
-                      {isLatestEvent && (
-                        <Animated.View style={[styles.pathwayNodeGlow, {
-                           backgroundColor: statusTheme.text,
-                           opacity: pulseAnim.interpolate({ inputRange: [1, 1.8], outputRange: [0.6, 0] }),
-                           transform: [{ scale: pulseAnim }]
-                        }]} />
-                      )}
+                     {/* Pulsing Glow behind the node for the latest event */}
+                     {isLatestEvent && (
+                       <Animated.View style={[styles.pathwayNodeGlow, {
+                          backgroundColor: statusTheme.text,
+                          opacity: pulseAnim.interpolate({ inputRange: [1, 1.8], outputRange: [0.6, 0] }),
+                          transform: [{ scale: pulseAnim }]
+                       }]} />
+                     )}
 
-                      {/* The Filled Node Circle */}
-                      <Animated.View style={[styles.pathwayNode, { 
-                         backgroundColor: statusTheme.text,
-                         transform: [{ scale: fadeAnim[globalIndex] }]
-                      }]} />
-                    </View>
+                     {/* The Filled Node Circle */}
+                     <Animated.View style={[styles.pathwayNode, { 
+                        backgroundColor: statusTheme.text,
+                        transform: [{ scale: fadeAnim[globalIndex] }]
+                     }]} />
+                   </View>
 
-                    {/* Vertical Stem connecting node to card */}
-                    <Animated.View style={[styles.pathwayStem, {
-                       opacity: fadeAnim[globalIndex]
-                    }]} />
+                   {/* Vertical Stem connecting node to card */}
+                   <Animated.View style={[styles.pathwayStem, {
+                      height: fadeAnim[globalIndex].interpolate({ inputRange: [0, 1], outputRange: [0, 15] }),
+                      opacity: fadeAnim[globalIndex]
+                   }]} />
                    
                    {/* Card Content */}
                    <Animated.View style={[styles.snakeCard, { 
@@ -189,11 +191,12 @@ const SnakeTimeline = ({ timeline, language, t, getStatusLocalized, onPressRemar
                         style={styles.snakeCardInner}
                         activeOpacity={0.7}
                         onPress={() => {
-                          onPressRemarks(
-                            getStatusLocalized(event.status),
-                            event.remarks || (language === 'te' ? 'ఎలాంటి వ్యాఖ్యలు లేవు.' : 'No remarks provided.'),
-                            `${new Date(event.createdAt).toLocaleDateString()} ${new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
-                          );
+                          setSelectedRemarks({
+                            title: getStatusLocalized(event.status),
+                            content: event.remarks || (language === 'te' ? 'ఎలాంటి వ్యాఖ్యలు లేవు.' : 'No remarks provided.'),
+                            date: `${new Date(event.createdAt).toLocaleDateString()} ${new Date(event.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`,
+                          });
+                          setRemarksModalVisible(true);
                         }}
                       >
                         <View style={[styles.snakeBadge, { backgroundColor: statusTheme.bg }]}>
@@ -229,6 +232,36 @@ const SnakeTimeline = ({ timeline, language, t, getStatusLocalized, onPressRemar
           </View>
         )
       })}
+
+      {/* Beautiful Bottom Sheet Modal for Remarks */}
+      <Modal visible={remarksModalVisible} transparent animationType="slide">
+        <View style={styles.bottomSheetOverlay}>
+          <TouchableOpacity style={styles.bottomSheetDismiss} activeOpacity={1} onPress={() => setRemarksModalVisible(false)} />
+          <View style={styles.bottomSheetCard}>
+            <View style={styles.bottomSheetHandle} />
+            <View style={styles.bottomSheetHeader}>
+              <View style={styles.bottomSheetIconBadge}>
+                <Ionicons name="chatbubbles" size={26} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bottomSheetTitle}>{language === 'te' ? 'వ్యాఖ్యలు' : 'Activity Remarks'}</Text>
+                <Text style={styles.bottomSheetSubtitle}>{selectedRemarks.title} • {selectedRemarks.date}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.bottomSheetContentContainer}>
+              <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
+                <Text style={styles.bottomSheetContentText}>{selectedRemarks.content}</Text>
+              </ScrollView>
+            </View>
+
+            <TouchableOpacity style={styles.bottomSheetCloseBtn} onPress={() => setRemarksModalVisible(false)}>
+              <Text style={styles.bottomSheetCloseText}>{language === 'te' ? 'మూసివేయు' : 'Dismiss'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 };
@@ -284,8 +317,6 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [remarksModalVisible, setRemarksModalVisible] = useState(false);
-  const [selectedRemarks, setSelectedRemarks] = useState({ title: '', content: '', date: '' });
   
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -610,13 +641,6 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
         <Text style={styles.metaLabel}>{t('addressLocation')}</Text>
         <Text style={styles.metaVal}>{ticket.location}</Text>
 
-        {ticket.latitude !== null && ticket.longitude !== null && ticket.latitude !== undefined && ticket.longitude !== undefined && (
-          <>
-            <Text style={styles.metaLabel}>{language === 'te' ? 'అక్షాంశం, రేఖాంశం (జీపీఎస్)' : 'GPS Coordinates (Latitude, Longitude)'}</Text>
-            <Text style={styles.metaVal}>{Number(ticket.latitude).toFixed(6)}, {Number(ticket.longitude).toFixed(6)}</Text>
-          </>
-        )}
-
         <Text style={styles.metaLabel}>{t('filedBy')}</Text>
         <Text style={styles.metaVal}>
           {ticket.citizen?.fullName || 'Anonymous'} ({ticket.citizen?.phone || 'No phone'})
@@ -823,14 +847,10 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
         <View style={styles.divider} />
 
         <SnakeTimeline 
-          timeline={ticket.timeline || []} 
+          timeline={ticket.timeline} 
           language={language} 
           t={t} 
           getStatusLocalized={getStatusLocalized} 
-          onPressRemarks={(title, content, date) => {
-            setSelectedRemarks({ title, content, date });
-            setRemarksModalVisible(true);
-          }}
         />
       </View>
 
@@ -908,35 +928,6 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
                 <Text style={styles.saveText}>{language === 'te' ? 'కేటాయించు' : 'Assign Staff'}</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Beautiful Bottom Sheet Modal for Remarks */}
-      <Modal visible={remarksModalVisible} transparent animationType="slide">
-        <View style={styles.bottomSheetOverlay}>
-          <TouchableOpacity style={styles.bottomSheetDismiss} activeOpacity={1} onPress={() => setRemarksModalVisible(false)} />
-          <View style={styles.bottomSheetCard}>
-            <View style={styles.bottomSheetHandle} />
-            <View style={styles.bottomSheetHeader}>
-              <View style={styles.bottomSheetIconBadge}>
-                <Ionicons name="chatbubbles" size={26} color={COLORS.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.bottomSheetTitle}>{language === 'te' ? 'వ్యాఖ్యలు' : 'Activity Remarks'}</Text>
-                <Text style={styles.bottomSheetSubtitle}>{selectedRemarks.title} • {selectedRemarks.date}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.bottomSheetContentContainer}>
-              <ScrollView style={styles.bottomSheetScroll} showsVerticalScrollIndicator={false}>
-                <Text style={styles.bottomSheetContentText}>{selectedRemarks.content}</Text>
-              </ScrollView>
-            </View>
-
-            <TouchableOpacity style={styles.bottomSheetCloseBtn} onPress={() => setRemarksModalVisible(false)}>
-              <Text style={styles.bottomSheetCloseText}>{language === 'te' ? 'మూసివేయు' : 'Dismiss'}</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1264,8 +1255,8 @@ const styles = StyleSheet.create({
   },
   pathwayStem: {
     width: 2,
-    height: 15,
     backgroundColor: '#D2C4C0',
+    // height is animated
   },
   snakeCard: {
     width: '100%',
