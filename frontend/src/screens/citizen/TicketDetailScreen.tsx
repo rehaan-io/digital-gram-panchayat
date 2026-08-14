@@ -29,6 +29,8 @@ interface TicketDetail {
   title: string;
   description: string;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   alternatePhone: string | null;
   issueImage: string | null;
   completionImage: string | null;
@@ -608,7 +610,12 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
         <Text style={styles.metaLabel}>{t('addressLocation')}</Text>
         <Text style={styles.metaVal}>{ticket.location}</Text>
 
-
+        {ticket.latitude !== null && ticket.longitude !== null && ticket.latitude !== undefined && ticket.longitude !== undefined && (
+          <>
+            <Text style={styles.metaLabel}>{language === 'te' ? 'అక్షాంశం, రేఖాంశం (జీపీఎస్)' : 'GPS Coordinates (Latitude, Longitude)'}</Text>
+            <Text style={styles.metaVal}>{Number(ticket.latitude).toFixed(6)}, {Number(ticket.longitude).toFixed(6)}</Text>
+          </>
+        )}
 
         <Text style={styles.metaLabel}>{t('filedBy')}</Text>
         <Text style={styles.metaVal}>
