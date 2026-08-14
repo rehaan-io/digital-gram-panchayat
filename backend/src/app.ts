@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { uploadsDir } from './config/storage';
 
 // Routes imports
 import authRoutes from './routes/auth.routes';
@@ -18,14 +19,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ensure uploads folder exists
-const uploadsPath = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+// Ensure uploads folder exists (uses UPLOADS_DIR env var in production)
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Serve uploaded images statically
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', express.static(uploadsDir));
 
 // API Routers
 app.use('/api/auth', authRoutes);
