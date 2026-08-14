@@ -9,7 +9,6 @@ import { CATEGORIES_MAP } from './GenerateTicketScreen';
 import { COLORS, globalStyles } from '../../styles/theme';
 import { useSnackbar } from '../../context/SnackbarContext';
 import { getStatusColor } from './MyTicketsScreen';
-import MapView, { Marker } from 'react-native-maps';
 
 interface TimelineEvent {
   id: string;
@@ -646,25 +645,6 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
 
         {ticket.latitude !== null && ticket.longitude !== null && ticket.latitude !== undefined && ticket.longitude !== undefined && (
           <View style={styles.mapCard}>
-            <MapView
-              style={styles.map}
-              initialRegion={{
-                latitude: ticket.latitude,
-                longitude: ticket.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              }}
-              scrollEnabled={true}
-              zoomEnabled={true}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Marker
-                coordinate={{ latitude: ticket.latitude, longitude: ticket.longitude }}
-                title={ticket.title}
-                description={ticket.location}
-              />
-            </MapView>
             <TouchableOpacity
               style={styles.directionBtn}
               onPress={() => {
@@ -679,9 +659,9 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
                 }
               }}
             >
-              <Ionicons name="navigate-circle-outline" size={16} color="#FFFFFF" />
+              <Ionicons name="navigate-circle" size={18} color="#FFFFFF" />
               <Text style={styles.directionBtnText}>
-                {language === 'te' ? 'దిశలను పొందండి (గూగుల్ మ్యాప్స్)' : 'Get Directions (Google Maps)'}
+                {language === 'te' ? 'గూగుల్ మ్యాప్స్ లో చూడండి' : 'Open in Google Maps'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1467,10 +1447,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
-  },
-  map: {
-    width: '100%',
-    height: 180,
   },
   directionBtn: {
     flexDirection: 'row',
