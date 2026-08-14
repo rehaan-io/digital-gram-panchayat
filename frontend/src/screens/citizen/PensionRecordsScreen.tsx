@@ -11,7 +11,7 @@ import {
   Platform,
   SafeAreaView,
 } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, API_BASE_URL } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { COLORS } from '../../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,7 +44,7 @@ const PensionRecordsScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL || 'https://api.grampanchayat.digital/api'}/modules/pension-records?page=${page}&limit=20&search=${encodeURIComponent(searchQuery)}`,
+        `${API_BASE_URL}/modules/pension-records?page=${page}&limit=20&search=${encodeURIComponent(searchQuery)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
