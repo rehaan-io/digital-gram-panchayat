@@ -53,7 +53,7 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
           </div>
           <div style="padding: 30px; background-color: #FFFFFF;">
             <h3 style="color: #2E294E; margin-top: 0;">Welcome, ${fullName}!</h3>
-            <p style="color: #4A4A4A; line-height: 1.6;">Thank you for registering at the Digital Gram Panchayat portal. To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
+            <p style="color: #4A4A4A; line-height: 1.6;">Thank you for registering at the Gorantla Gram Panchayat portal. To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${verifyUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
             </div>
@@ -249,10 +249,10 @@ router.get('/verify-email/:token', async (req: Request, res: Response) => {
 
     return res.send(`
       <html>
-        <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #FDFBF7;">
-          <div style="max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #0288D1;">
-            <h1 style="color: #0288D1;">Verification Successful!</h1>
-            <p>Your email has been verified successfully. You can now close this page and log into the Digital Gram Panchayat app.</p>
+        <body>
+          <div style="text-align: center; font-family: sans-serif; padding: 50px;">
+            <h2 style="color: #4CAF50;">Email Verified!</h2>
+            <p>Your email has been verified successfully. You can now close this page and log into the Gorantla Gram Panchayat app.</p>
           </div>
         </body>
       </html>

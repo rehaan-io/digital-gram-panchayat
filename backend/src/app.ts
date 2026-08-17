@@ -39,7 +39,7 @@ app.use('/api/modules', modulesRoutes);
 app.get('/', (req: Request, res: Response) => {
   res.json({
     status: 'online',
-    message: 'Digital Gram Panchayat Management System Backend API is active.',
+    message: 'Gorantla Gram Panchayat Management System Backend API is active.',
     timestamp: new Date(),
   });
 });
