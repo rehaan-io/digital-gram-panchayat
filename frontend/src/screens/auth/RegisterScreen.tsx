@@ -29,6 +29,10 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
   const handleRegister = async () => {
     if (!fullName.trim() || !phone.trim() || !email.trim() || !password || !confirmPassword) {
@@ -38,6 +42,11 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     if (password !== confirmPassword) {
       showSnackbar('Passwords do not match.', 'error');
+      return;
+    }
+
+    if (!passwordRegex.test(password)) {
+      showSnackbar('Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character.', 'error');
       return;
     }
 
@@ -148,17 +157,20 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color="#595959" style={styles.inputIcon} />
               <TextInput
-                style={styles.textInput}
-                placeholder="At least 6 characters"
+                style={[styles.textInput, { flex: 1 }]}
+                placeholder="At least 8 characters"
                 placeholderTextColor="#A0AEC0"
                 value={password}
                 onChangeText={(val) => {
                   setPassword(val);
                   clearError();
                 }}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ paddingHorizontal: 10 }}>
+                <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
             </View>
 
             {/* Confirm Password Input */}
@@ -166,7 +178,7 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color="#595959" style={styles.inputIcon} />
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { flex: 1 }]}
                 placeholder="Re-enter password"
                 placeholderTextColor="#A0AEC0"
                 value={confirmPassword}
@@ -174,9 +186,12 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   setConfirmPassword(val);
                   clearError();
                 }}
-                secureTextEntry
+                secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
               />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={{ paddingHorizontal: 10 }}>
+                <Ionicons name={showConfirmPassword ? "eye-outline" : "eye-off-outline"} size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
             </View>
 
             {/* Register Button */}

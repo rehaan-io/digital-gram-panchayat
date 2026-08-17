@@ -27,6 +27,7 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t, language, changeLanguage } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   const handleLogin = async () => {
@@ -64,6 +65,9 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
             <Text style={styles.brandTitle}>{t('brandTitle')}</Text>
             <Text style={styles.brandSub}>{t('brandSub')}</Text>
+            <Text style={{ color: '#FFD400', fontSize: 13, marginTop: 10, fontWeight: 'bold' }}>
+              Managed by Sai Sanjay
+            </Text>
           </View>
 
           {/* Login Form Container Overlay */}
@@ -114,7 +118,7 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color={COLORS.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { flex: 1 }]}
                 placeholder="••••••••"
                 placeholderTextColor={COLORS.textSecondary}
                 value={password}
@@ -122,9 +126,12 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   setPassword(val);
                   clearError();
                 }}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ paddingHorizontal: 10 }}>
+                <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
             </View>
 
             {/* Remember Me Switch Row */}

@@ -156,6 +156,14 @@ router.post('/register', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Passwords do not match.' });
   }
 
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  if (!passwordRegex.test(password)) {
+    console.log('[LOG] REGISTER_FAILED - Password does not meet complexity requirements');
+    return res.status(400).json({ 
+      message: 'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character.' 
+    });
+  }
+
   try {
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
