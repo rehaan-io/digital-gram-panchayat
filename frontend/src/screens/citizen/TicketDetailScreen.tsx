@@ -884,7 +884,7 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
             <Text style={styles.modalHeader}>{language === 'te' ? 'సిబ్బంది కేటాయింపు' : 'Assign Service Worker'}</Text>
             
             <Text style={globalStyles.label}>{language === 'te' ? 'సిబ్బందిని ఎంచుకోండి' : 'Select Staff Member'}</Text>
-            <View style={styles.dropdownContainer}>
+            <ScrollView style={styles.dropdownContainer} nestedScrollEnabled={true}>
               {employees.map((emp) => (
                 <TouchableOpacity
                   key={emp.id}
@@ -899,7 +899,7 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
 
             <Text style={globalStyles.label}>{language === 'te' ? 'పూర్తయ్యే అంచనా తేదీ & సమయం' : 'Expected Completion Date & Time'}</Text>
             <CustomDateTimePicker

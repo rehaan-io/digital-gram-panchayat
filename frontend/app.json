@@ -1,20 +1,18 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Digital Gram Panchayat",
     "slug": "mohammed-rehaan",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ggp_logo.jpg",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/ggp_logo.jpg"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.rehaan1steam.mohammedrehaan",

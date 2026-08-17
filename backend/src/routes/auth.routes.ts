@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 // Helper: Send email via Nodemailer/Gmail SMTP
 const sendVerificationEmail = async (email: string, fullName: string, token: string) => {
   console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendVerificationEmail via Nodemailer/Gmail');
-  const verifyUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/verify-email/${token}`;
+  const verifyUrl = `https://api.grampanchayat.digital/api/auth/verify-email/${token}`;
   
   console.log('\n==================================================');
   console.log(`✉️  [EMAIL SENDING VIA GMAIL SMTP]`);
@@ -77,7 +77,7 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
 // Helper: Send password reset email via Nodemailer/Gmail SMTP
 const sendResetEmail = async (email: string, fullName: string, token: string) => {
   console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendResetEmail via Nodemailer/Gmail');
-  const resetUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/auth/reset-password-page?token=${token}`;
+  const resetUrl = `https://api.grampanchayat.digital/api/auth/reset-password-page?token=${token}`;
   
   console.log('\n==================================================');
   console.log(`✉️  [EMAIL SENDING VIA GMAIL SMTP]`);
@@ -147,10 +147,12 @@ router.post('/register', async (req: Request, res: Response) => {
   const { fullName, phone, email, password, confirmPassword } = req.body;
 
   if (!fullName || !phone || !email || !password || !confirmPassword) {
+    console.log('[LOG] REGISTER_FAILED - Missing fields');
     return res.status(400).json({ message: 'All fields are required.' });
   }
 
   if (password !== confirmPassword) {
+    console.log('[LOG] REGISTER_FAILED - Passwords do not match');
     return res.status(400).json({ message: 'Passwords do not match.' });
   }
 
@@ -163,6 +165,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
+      console.log(`[LOG] REGISTER_FAILED - User already exists with email: ${email} or phone: ${phone}`);
       return res.status(400).json({
         message: 'A user with this email or phone number already exists.',
       });
@@ -176,10 +179,10 @@ router.post('/register', async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create verification token (Disabled for now)
-    const verificationToken = null;
+    // Generate verification token (crypto random string or just random bytes)
+    const verificationToken = require('crypto').randomBytes(32).toString('hex');
 
-    // Create user (Auto-verified)
+    // Create user
     const newUser = await prisma.user.create({
       data: {
         fullName,
@@ -188,13 +191,13 @@ router.post('/register', async (req: Request, res: Response) => {
         password: hashedPassword,
         username,
         role: 'CITIZEN',
-        isVerified: true,
+        isVerified: false,
         verificationToken,
       },
     });
 
-    // Send verification email (Skipped to avoid SMTP connection timeouts)
-    // await sendVerificationEmail(email, fullName, verificationToken);
+    // Send verification email via Nodemailer
+    await sendVerificationEmail(email, fullName, verificationToken);
 
     return res.status(201).json({
       message: 'Registration successful! You can now log in to your account.',
