@@ -165,7 +165,9 @@ const GenerateTicketScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
       ].filter(Boolean);
 
       const fullAddress = parts.join(', ');
-      setLocation(fullAddress);
+      // Append coordinates so TicketDetailScreen can parse them later without backend schema changes
+      const locationWithCoords = `${fullAddress} |[${coords.coords.latitude},${coords.coords.longitude}]`;
+      setLocation(locationWithCoords);
       setErrors((prev) => ({ ...prev, location: undefined }));
     } catch (err) {
       showSnackbar('Could not fetch location. Please enter it manually.', 'error');

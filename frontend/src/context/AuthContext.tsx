@@ -29,7 +29,6 @@ interface AuthContextType {
   resetPassword: (data: any) => Promise<{ success: boolean; message: string }>;
   clearError: () => void;
   updateUser: (newUser: User) => Promise<void>;
-  bypassLogin: (role: 'ADMIN' | 'CITIZEN') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -200,41 +199,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const bypassLogin = async (role: 'ADMIN' | 'CITIZEN') => {
-    setIsLoading(true);
-    try {
-      const mockUser: User = role === 'ADMIN' ? {
-        id: 'mock-admin-id',
-        username: 'admin',
-        email: 'admin@panchayat.gov.in',
-        fullName: 'Gram Panchayat Admin (Bypass)',
-        phone: '9999999999',
-        role: 'ADMIN',
-        isVerified: true
-      } : {
-        id: 'mock-citizen-id',
-        username: 'citizen_test',
-        email: 'citizen@example.com',
-        fullName: 'Ramesh Kumar (Bypass)',
-        phone: '8888888888',
-        role: 'CITIZEN',
-        isVerified: true
-      };
-
-      const mockToken = 'mock-jwt-token-for-testing';
-
-      await SecureStore.setItemAsync('token', mockToken);
-      await SecureStore.setItemAsync('user', JSON.stringify(mockUser));
-
-      setToken(mockToken);
-      setUser(mockUser);
-    } catch (err) {
-      console.error('Bypass login storage error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -249,7 +213,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPassword,
         clearError,
         updateUser,
-        bypassLogin,
       }}
     >
       {children}

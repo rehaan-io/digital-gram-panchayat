@@ -22,7 +22,7 @@ import { COLORS } from '../../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { login, isLoading, error, clearError, bypassLogin } = useAuth();
+  const { login, isLoading, error, clearError } = useAuth();
   const { showSnackbar } = useSnackbar();
   const { t, language, changeLanguage } = useLanguage();
   const [email, setEmail] = useState('');
@@ -41,19 +41,7 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const handleBypassPress = async (role: 'ADMIN' | 'CITIZEN') => {
-    const bypassEmail = role === 'ADMIN' ? 'admin@panchayat.gov.in' : 'citizen@example.com';
-    const bypassPassword = role === 'ADMIN' ? 'Admin@123' : 'Citizen@123';
-    
-    showSnackbar(`${t('loadingText')} (${role})`, 'info');
-    const success = await login(bypassEmail, bypassPassword);
-    if (!success) {
-      await bypassLogin(role);
-      showSnackbar(`Offline bypass active (${role})`, 'warning');
-    } else {
-      showSnackbar(`Logged in (${role})`, 'success');
-    }
-  };
+
 
   return (
     <KeyboardAvoidingView
@@ -171,27 +159,6 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <Text style={styles.forgotText}>{t('recoverPassword')}</Text>
             </TouchableOpacity>
 
-            {/* Testing Bypass Panel */}
-            <View style={styles.bypassCard}>
-              <Text style={styles.bypassTitle}>{t('bypassPanelTitle')}</Text>
-              <View style={styles.bypassRow}>
-                <TouchableOpacity
-                  style={[styles.bypassBtn, { backgroundColor: '#E8ECCB' }]}
-                  onPress={() => handleBypassPress('ADMIN')}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.bypassBtnText}>{t('adminBypass')}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.bypassBtn, { backgroundColor: '#E8ECCB' }]}
-                  onPress={() => handleBypassPress('CITIZEN')}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.bypassBtnText}>{t('citizenBypass')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
           </View>
 
@@ -423,37 +390,6 @@ const styles = StyleSheet.create({
     color: '#820263', // Royal Plum brand action
     fontWeight: '700',
     fontSize: 13,
-  },
-  bypassCard: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#D2C4C0',
-  },
-  bypassTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#595959', // Slate Gray
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  bypassRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  bypassBtn: {
-    flex: 0.48,
-    height: 38,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bypassBtnText: {
-    color: '#820263', // Royal Plum brand text
-    fontWeight: '800',
-    fontSize: 12,
   },
   footer: {
     flexDirection: 'row',

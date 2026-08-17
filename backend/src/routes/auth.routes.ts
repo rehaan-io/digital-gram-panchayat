@@ -277,6 +277,13 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
+    // Employee Suspended Check
+    if (user.role === 'EMPLOYEE' && !user.isVerified) {
+      return res.status(403).json({
+        message: 'Your account has been suspended by the administration.',
+      });
+    }
+
     // Citizen must verify email before logging in (Bypassed for now)
     /*
     if (user.role === 'CITIZEN' && !user.isVerified) {

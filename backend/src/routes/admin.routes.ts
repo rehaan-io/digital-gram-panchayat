@@ -116,6 +116,7 @@ router.get('/employees', async (req: AuthenticatedRequest, res: Response) => {
             email: true,
             phone: true,
             username: true,
+            isVerified: true,
             createdAt: true,
           },
         },
@@ -161,6 +162,7 @@ router.get('/employees', async (req: AuthenticatedRequest, res: Response) => {
         email: emp.user.email,
         phone: emp.user.phone,
         username: emp.user.username,
+        isVerified: emp.user.isVerified,
         department: emp.department,
         photo: emp.photo,
         leaveStatus,
@@ -170,6 +172,102 @@ router.get('/employees', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     return res.status(200).json(formatted);
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+});
+
+// 2a. DELETE EMPLOYEE
+router.delete('/employees/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params; // Employee UUID
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+    
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found.' });
+    }
+
+    // Unassign tickets
+    const assignedTickets = await prisma.ticket.findMany({
+      where: { employeeId: id }
+    });
+    
+    if (assignedTickets.length > 0) {
+      await prisma.ticket.updateMany({
+        where: { employeeId: id },
+        data: { employeeId: null, status: 'PENDING' }
+      });
+      // Admin notification for reassignment
+      await prisma.notification.createMany({
+        data: assignedTickets.map(t => ({
+          userId: req.user!.id, // notify the admin who deleted
+          ticketId: t.id,
+          title: 'Employee Deleted - Ticket Reassignment Needed',
+          message: `Ticket ${t.ticketId} needs reassignment because the assigned employee was removed.`
+        }))
+      });
+    }
+
+    // Delete User (Cascades to Employee Profile, Leaves)
+    await prisma.user.delete({
+      where: { id: employee.userId }
+    });
+
+    return res.status(200).json({ message: 'Employee account completely removed.' });
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+});
+
+// 2b. UPDATE / SUSPEND EMPLOYEE
+router.put('/employees/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params; // Employee UUID
+  const { action, fullName, phone, email, department, password } = req.body;
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found.' });
+    }
+
+    // Handle Suspend/Unsuspend action
+    if (action === 'SUSPEND') {
+      await prisma.user.update({ where: { id: employee.userId }, data: { isVerified: false } });
+      return res.status(200).json({ message: 'Employee suspended successfully.' });
+    }
+    if (action === 'UNSUSPEND') {
+      await prisma.user.update({ where: { id: employee.userId }, data: { isVerified: true } });
+      return res.status(200).json({ message: 'Employee access restored successfully.' });
+    }
+
+    // Handle regular profile update
+    const userUpdateData: any = {};
+    if (fullName) userUpdateData.fullName = fullName;
+    if (phone) userUpdateData.phone = phone;
+    if (email) userUpdateData.email = email;
+    if (password) {
+      userUpdateData.password = await bcrypt.hash(password, 10);
+    }
+
+    await prisma.user.update({
+      where: { id: employee.userId },
+      data: userUpdateData
+    });
+
+    if (department) {
+      await prisma.employee.update({
+        where: { id },
+        data: { department }
+      });
+    }
+
+    return res.status(200).json({ message: 'Employee updated successfully.' });
   } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + error.message });
   }

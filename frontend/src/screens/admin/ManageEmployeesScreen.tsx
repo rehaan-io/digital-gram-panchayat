@@ -15,6 +15,7 @@ interface Employee {
   phone: string;
   username: string;
   department: string;
+  isVerified: boolean;
   photo?: string | null;
   leaveStatus?: 'ON_DUTY' | 'ON_LEAVE' | 'LEAVE_REQUESTED';
   activeTicketsCount: number;
@@ -26,6 +27,7 @@ const ManageEmployeesScreen: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
 
   // Form Fields
   const [fullName, setFullName] = useState('');
@@ -116,14 +118,49 @@ const ManageEmployeesScreen: React.FC = () => {
     fetchLeaves();
   }, []);
 
-  const handleCreateEmployee = async () => {
-    if (!fullName.trim() || !phone.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Validation Error', 'All mandatory fields are required.');
+  const resetForm = () => {
+    setFullName('');
+    setPhone('');
+    setEmail('');
+    setPassword('');
+    setDepartment('');
+    setPhoto(null);
+    setShowAddForm(false);
+    setEditingEmployeeId(null);
+  };
+
+  const handleCreateOrUpdateEmployee = async () => {
+    if (!fullName.trim() || !phone.trim() || !email.trim() || (!password.trim() && !editingEmployeeId)) {
+      Alert.alert('Validation Error', 'All mandatory fields are required (password is optional for updates).');
       return;
     }
 
     setIsSubmitting(true);
     try {
+      if (editingEmployeeId) {
+        const response = await fetch(`${API_BASE_URL}/admin/employees/${editingEmployeeId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            phone: phone.trim(),
+            email: email.trim().toLowerCase(),
+            password: password ? password : undefined,
+            department: department.trim() || 'General Services',
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update employee.');
+
+        Alert.alert('Success', 'Employee updated successfully!');
+        resetForm();
+        fetchEmployees();
+      } else {
+
       if (photo && (photo.startsWith('file://') || photo.startsWith('content://'))) {
         const url = `${API_BASE_URL}/admin/employees`;
         const uploadResult = await FileSystem.uploadAsync(url, photo, {
@@ -149,13 +186,7 @@ const ManageEmployeesScreen: React.FC = () => {
             `Employee created successfully!\nName: ${fullName}\nGenerated ID: ${resJson.user.employeeId}`
           );
           
-          setFullName('');
-          setPhone('');
-          setEmail('');
-          setPassword('');
-          setDepartment('');
-          setPhoto(null);
-          setShowAddForm(false);
+          resetForm();
           fetchEmployees();
         } else {
           let errorData = { message: 'Failed to create employee.' };
@@ -189,20 +220,89 @@ const ManageEmployeesScreen: React.FC = () => {
           `Employee created successfully!\nName: ${fullName}\nGenerated ID: ${data.user.employeeId}`
         );
 
-        setFullName('');
-        setPhone('');
-        setEmail('');
-        setPassword('');
-        setDepartment('');
-        setPhoto(null);
-        setShowAddForm(false);
+        resetForm();
         fetchEmployees();
       }
+      } // Closing brace for the outer 'else' block
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const openEditForm = (emp: Employee) => {
+    setEditingEmployeeId(emp.id);
+    setFullName(emp.fullName);
+    setPhone(emp.phone);
+    setEmail(emp.email);
+    setPassword(''); // leave blank unless changing
+    setDepartment(emp.department);
+    setPhoto(null); // updating photo not fully supported yet in edit
+    setShowAddForm(true);
+  };
+
+  const handleSuspendUnsuspend = async (emp: Employee) => {
+    const action = emp.isVerified ? 'SUSPEND' : 'UNSUSPEND';
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/employees/${emp.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to update status');
+      }
+      Alert.alert('Success', `Employee ${action === 'SUSPEND' ? 'suspended' : 'unsuspended'} successfully.`);
+      fetchEmployees();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleDelete = async (emp: Employee, reason: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/employees/${emp.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to delete employee');
+      }
+      Alert.alert('Success', `Employee marked as ${reason} and removed from the system.`);
+      fetchEmployees();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleManageOptions = (emp: Employee) => {
+    Alert.alert(
+      'Manage Staff Access',
+      `Choose action for ${emp.fullName}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: emp.isVerified ? 'Suspend Access' : 'Restore Access',
+          onPress: () => handleSuspendUnsuspend(emp)
+        },
+        {
+          text: 'Mark as Resigned (Remove)',
+          onPress: () => {
+            Alert.alert('Confirm', 'Are you sure you want to completely remove this employee?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => handleDelete(emp, 'Resigned') }
+            ]);
+          },
+          style: 'destructive'
+        }
+      ]
+    );
   };
 
   const renderItem = ({ item }: { item: Employee }) => {
@@ -263,15 +363,23 @@ const ManageEmployeesScreen: React.FC = () => {
         {/* Footer Slots Block */}
         <View style={styles.refFooter}>
           <View style={styles.slotContainer}>
-            <Text style={styles.slotLabel}>Current Status:</Text>
+            <Text style={styles.slotLabel}>Status & Load:</Text>
             <View style={styles.statusRow}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.slotValue, { color: statusColor }]}>{statusText}</Text>
+              <View style={[styles.statusDot, { backgroundColor: !item.isVerified ? '#94A3B8' : statusColor }]} />
+              <Text style={[styles.slotValue, { color: !item.isVerified ? '#64748B' : statusColor }]}>{!item.isVerified ? 'Suspended' : statusText}</Text>
             </View>
+            <Text style={[styles.slotValue, { marginTop: 4, fontSize: 11 }]}>{item.activeTicketsCount} active tickets</Text>
           </View>
           
-          <View style={styles.footerActionBtn}>
-            <Text style={styles.footerActionText}>Workload: {item.activeTicketsCount} tickets</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={[styles.footerActionBtn, { backgroundColor: '#475569', paddingHorizontal: 12 }]} onPress={() => openEditForm(item)}>
+              <Ionicons name="create-outline" size={16} color="#FFF" />
+              <Text style={styles.footerActionText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.footerActionBtn, { backgroundColor: '#EF4444', paddingHorizontal: 12 }]} onPress={() => handleManageOptions(item)}>
+              <Ionicons name="settings-outline" size={16} color="#FFF" />
+              <Text style={styles.footerActionText}>Manage</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -286,7 +394,10 @@ const ManageEmployeesScreen: React.FC = () => {
     >
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Panchayat Staff Hub</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddForm(!showAddForm)}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => {
+          if (showAddForm) resetForm();
+          else setShowAddForm(true);
+        }}>
           <Text style={styles.addBtnText}>{showAddForm ? 'Close Form' : 'Add Staff'}</Text>
         </TouchableOpacity>
       </View>
@@ -313,8 +424,8 @@ const ManageEmployeesScreen: React.FC = () => {
 
       {showAddForm && (
         <ScrollView style={styles.formCard} keyboardShouldPersistTaps="handled">
-          <Text style={styles.formTitle}>Add New Staff Member</Text>
-          <Text style={styles.formNote}>Employee accounts are created pre-verified.</Text>
+          <Text style={styles.formTitle}>{editingEmployeeId ? 'Edit Staff Member' : 'Add New Staff Member'}</Text>
+          <Text style={styles.formNote}>Employee accounts are managed here.</Text>
 
           <Text style={globalStyles.label}>Full Name *</Text>
           <TextInput style={globalStyles.input} placeholder="Rajesh Patel" placeholderTextColor={COLORS.textSecondary} value={fullName} onChangeText={setFullName} />
@@ -325,8 +436,8 @@ const ManageEmployeesScreen: React.FC = () => {
           <Text style={globalStyles.label}>Email Address *</Text>
           <TextInput style={globalStyles.input} placeholder="rajesh@panchayat.gov.in" placeholderTextColor={COLORS.textSecondary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
-          <Text style={globalStyles.label}>Credentials Password *</Text>
-          <TextInput style={globalStyles.input} placeholder="Enter password" placeholderTextColor={COLORS.textSecondary} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
+          <Text style={globalStyles.label}>Credentials Password {editingEmployeeId ? '(Leave blank to keep)' : '*'}</Text>
+          <TextInput style={globalStyles.input} placeholder={editingEmployeeId ? 'Enter new password' : 'Enter password'} placeholderTextColor={COLORS.textSecondary} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
 
           <Text style={globalStyles.label}>Department / Ward assignment</Text>
           <TextInput style={globalStyles.input} placeholder="E.g., Sanitation / Lights" placeholderTextColor={COLORS.textSecondary} value={department} onChangeText={setDepartment} />
@@ -342,8 +453,8 @@ const ManageEmployeesScreen: React.FC = () => {
             )}
           </View>
 
-          <TouchableOpacity style={[globalStyles.button, { marginVertical: 20 }]} onPress={handleCreateEmployee} disabled={isSubmitting}>
-            {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={globalStyles.buttonText}>Register Employee</Text>}
+          <TouchableOpacity style={[globalStyles.button, { marginVertical: 20 }]} onPress={handleCreateOrUpdateEmployee} disabled={isSubmitting}>
+            {isSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={globalStyles.buttonText}>{editingEmployeeId ? 'Update Employee' : 'Register Employee'}</Text>}
           </TouchableOpacity>
         </ScrollView>
       )}

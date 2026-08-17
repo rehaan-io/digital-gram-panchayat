@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, Image, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomDateTimePicker from '../../components/CustomDateTimePicker';
+import MapView, { Marker } from 'react-native-maps';
 import { useAuth, API_BASE_URL, FILE_BASE_URL } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -622,6 +623,25 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
   const statusTheme = getStatusColor(ticket.status);
   const isAssignedEmployee = user?.role === 'EMPLOYEE' && ticket.assignedEmployee?.employeeId === user?.employeeId;
 
+  // Extract hidden coordinates from location string if present
+  let displayLocation = ticket.location;
+  let parsedCoords: { latitude: number; longitude: number } | null = null;
+  if (ticket.location && ticket.location.includes(' |[')) {
+    try {
+      const parts = ticket.location.split(' |[');
+      displayLocation = parts[0];
+      const coordsPart = parts[1].replace(']', '');
+      const [latStr, lngStr] = coordsPart.split(',');
+      const lat = parseFloat(latStr);
+      const lng = parseFloat(lngStr);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        parsedCoords = { latitude: lat, longitude: lng };
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={globalStyles.card}>
@@ -639,7 +659,25 @@ const TicketDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, 
         <View style={styles.divider} />
         
         <Text style={styles.metaLabel}>{t('addressLocation')}</Text>
-        <Text style={styles.metaVal}>{ticket.location}</Text>
+        <Text style={styles.metaVal}>{displayLocation}</Text>
+
+        {parsedCoords ? (
+          <View style={styles.mapContainer}>
+            <MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: parsedCoords.latitude,
+                longitude: parsedCoords.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              }}
+            >
+              <Marker coordinate={parsedCoords} />
+            </MapView>
+          </View>
+        ) : (
+          <Text style={styles.noCoordsText}>Location coordinates unavailable.</Text>
+        )}
 
         <Text style={styles.metaLabel}>{t('filedBy')}</Text>
         <Text style={styles.metaVal}>
@@ -1407,5 +1445,22 @@ const styles = StyleSheet.create({
     color: '#1F1F1F',
     fontWeight: '700',
     marginTop: 2,
+  },
+  mapContainer: {
+    height: 200,
+    width: '100%',
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
+  },
+  map: {
+    flex: 1,
+  },
+  noCoordsText: {
+    fontSize: 12,
+    color: '#A0AEC0',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
