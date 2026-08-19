@@ -537,7 +537,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchAnnouncements();
   }, []);
 
-  const sortOrder = ['Srimati Y.Samatha', 'Srimati Kamala Bai', 'U. Guruswamy', 'Sai Sanjay', 'Srimati B.Haseena Begum', 'G. Sai Charan', 'B.Sudhakar'];
+  const sortOrder = ['Srimati Y.Samatha', 'Srimati Kamala Bai', 'U. Guruswamy', 'Guruswamy', 'Sai Sanjay', 'Srimati B.Haseena Begum', 'G. Sai Charan', 'B.Sudhakar'];
   const getSortIndex = (name: string) => {
     const normalized = name.replace(/\s+/g, '').toLowerCase();
     const idx = sortOrder.findIndex(item => item.replace(/\s+/g, '').toLowerCase() === normalized);
@@ -979,7 +979,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                       </View>
                       <View style={styles.officialInfoSlide}>
                         <View style={styles.officialNameRow}>
-                          <Text style={styles.officialNameSlide}>{language === 'te' && official.nameTe ? official.nameTe : official.name}</Text>
+                          <Text style={styles.officialNameSlide}>{language === 'te' && official.nameTe ? official.nameTe : (official.name === 'Guruswamy' ? 'U. Guruswamy' : official.name)}</Text>
                           <Ionicons name="checkmark-circle" size={18} color="#00C2A8" style={{marginLeft: 4}} />
                         </View>
                         <View style={styles.highlightBadge}>
