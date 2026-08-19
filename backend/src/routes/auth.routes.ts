@@ -120,12 +120,13 @@ const sendResetEmail = async (email: string, fullName: string, token: string) =>
           </div>
           <div style="padding: 30px; background-color: #FFFFFF;">
             <h3 style="color: #2E294E; margin-top: 0;">Hello, ${fullName}!</h3>
-            <p style="color: #4A4A4A; line-height: 1.6;">We received a request to reset your password. If you did not make this request, you can ignore this email. Otherwise, click the button below to reset your password:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" style="background-color: #820263; color: #FFFFFF; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+            <p style="color: #4A4A4A; line-height: 1.6;">We received a request to reset your password. If you did not make this request, you can ignore this email. Otherwise, use the 6-digit verification code below to reset your password in the app:</p>
+            
+            <div style="text-align: center; margin: 30px 0; background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px dashed #cccccc;">
+              <span style="font-size: 32px; font-weight: bold; color: #2E294E; letter-spacing: 8px;">${token}</span>
             </div>
-            <p style="color: #777777; font-size: 12px; line-height: 1.6;">If the button above does not work, copy and paste the following URL into your web browser:</p>
-            <p style="color: #820263; font-size: 12px; word-break: break-all;"><a href="${resetUrl}" style="color: #820263;">${resetUrl}</a></p>
+            
+            <p style="color: #777777; font-size: 14px; text-align: center; margin-top: 20px;">Please copy and paste this code into the mobile app.</p>
           </div>
           <div style="background-color: #F5F5F5; padding: 15px; text-align: center; font-size: 11px; color: #888888; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
             <p style="margin: 0;">This is an automated system email. Please do not reply directly to this mail.</p>

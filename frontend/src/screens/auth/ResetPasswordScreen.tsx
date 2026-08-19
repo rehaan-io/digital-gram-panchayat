@@ -20,6 +20,12 @@ const ResetPasswordScreen: React.FC<{ route: any; navigation: any }> = ({ route,
       return;
     }
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      Alert.alert(t('errorTitle'), 'Password must be at least 8 characters in TOTAL (including at least 1 uppercase, 1 lowercase, 1 number, and 1 special character).');
+      return;
+    }
+
     setIsSubmitting(true);
     const result = await resetPassword({
       email: email.trim().toLowerCase(),
