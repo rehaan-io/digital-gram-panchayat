@@ -537,7 +537,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     fetchAnnouncements();
   }, []);
 
-  const sortOrder = ['Srimati Y.Samatha', 'Srimati Kamala Bai', 'Guruswamy', 'Sai Sanjay', 'Srimati B.Haseena Begum', 'G. Sai Charan', 'B.Sudhakar'];
+  const sortOrder = ['Srimati Y.Samatha', 'Srimati Kamala Bai', 'U. Guruswamy', 'Sai Sanjay', 'Srimati B.Haseena Begum', 'G. Sai Charan', 'B.Sudhakar'];
   const getSortIndex = (name: string) => {
     const normalized = name.replace(/\s+/g, '').toLowerCase();
     const idx = sortOrder.findIndex(item => item.replace(/\s+/g, '').toLowerCase() === normalized);

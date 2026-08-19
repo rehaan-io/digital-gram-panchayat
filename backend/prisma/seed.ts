@@ -297,7 +297,7 @@ async function main() {
       status: 'ACTIVE',
     },
     {
-      name: 'Guruswamy',
+      name: 'U. Guruswamy',
       nameTe: 'గురుస్వామి',
       designation: 'GPDO',
       designationTe: 'జి.пи.డి.ఓ',
