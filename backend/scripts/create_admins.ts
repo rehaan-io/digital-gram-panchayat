@@ -4,45 +4,80 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  // First, delete the old ones to avoid clutter
-  await prisma.user.deleteMany({
-    where: {
-      username: {
-        in: ['anand_rao', 'sunita_reddy', 'kiran_varma']
-      }
-    }
+  // Find all current admins
+  const adminsToDelete = await prisma.user.findMany({
+    where: { role: 'ADMIN' },
+    select: { id: true }
   });
+  
+  const adminIds = adminsToDelete.map(a => a.id);
+
+  if (adminIds.length > 0) {
+    // 1. Delete their timeline entries
+    await prisma.ticketTimeline.deleteMany({
+      where: { actorId: { in: adminIds } }
+    });
+
+    // 2. Unassign them from tickets (if they have an employee profile)
+    const employeeProfiles = await prisma.employee.findMany({
+      where: { userId: { in: adminIds } },
+      select: { id: true }
+    });
+    const empIds = employeeProfiles.map(e => e.id);
+    
+    if (empIds.length > 0) {
+      await prisma.ticket.updateMany({
+        where: { employeeId: { in: empIds } },
+        data: { employeeId: null }
+      });
+    }
+
+    // 3. Delete the admins
+    const deleted = await prisma.user.deleteMany({
+      where: { id: { in: adminIds } }
+    });
+    console.log(`Deleted ${deleted.count} existing admin accounts from the database.`);
+  }
 
   const admins = [
     {
-      username: 'sai_sanjay',
-      email: 'sai.sanjay@panchayat.gov.in',
-      phone: '9848011111',
-      fullName: 'Sai Sanjay',
-      password: 'Secure#Sai2026',
-    },
-    {
       username: 'samatha',
-      email: 'samatha@panchayat.gov.in',
-      phone: '9848022222',
-      fullName: 'Samatha',
-      password: 'Admin!Samatha99',
+      email: 'samatha@grampanchayat.digital',
+      phone: '9848011111',
+      fullName: 'Y. Samatha',
+      password: 'Samatha@Admin2026',
     },
     {
-      username: 'kamala_bai',
-      email: 'kamala.bai@panchayat.gov.in',
+      username: 'haseena',
+      email: 'haseena@grampanchayat.digital',
+      phone: '9848022222',
+      fullName: 'B. Haseena Begum',
+      password: 'Haseena#Admin26',
+    },
+    {
+      username: 'sudhakar',
+      email: 'sudhakar@grampanchayat.digital',
       phone: '9848033333',
-      fullName: 'Kamala bai',
-      password: 'Kamala$Gov88',
+      fullName: 'B. Sudhakar',
+      password: 'Sudhakar$Admin26',
+    },
+    {
+      username: 'ravindra',
+      email: 'ravindra@grampanchayat.digital',
+      phone: '9848044444',
+      fullName: 'Ravindra Kumar P',
+      password: 'Ravindra%Admin26',
+    },
+    {
+      username: 'ashok',
+      email: 'ashok@grampanchayat.digital',
+      phone: '9848055555',
+      fullName: 'Ashok Kumar',
+      password: 'Ashok*Admin2026',
     }
   ];
 
   for (const admin of admins) {
-    const existing = await prisma.user.findUnique({ where: { username: admin.username } });
-    if (existing) {
-      console.log(`Admin ${admin.username} already exists.`);
-      continue;
-    }
     const hashedPassword = await bcrypt.hash(admin.password, 10);
     
     await prisma.user.create({
@@ -56,7 +91,7 @@ async function main() {
         isVerified: true,
       }
     });
-    console.log(`Created admin: ${admin.username} (Pass: ${admin.password})`);
+    console.log(`Created new admin: ${admin.fullName} (${admin.email}) | Password: ${admin.password}`);
   }
 }
 
