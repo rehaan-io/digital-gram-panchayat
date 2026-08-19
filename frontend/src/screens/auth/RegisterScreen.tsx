@@ -47,6 +47,8 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     if (!passwordRegex.test(password)) {
       showSnackbar('Password must be at least 8 characters in TOTAL (including at least 1 uppercase, 1 lowercase, 1 number, and 1 special character).', 'error');
+      setPassword('');
+      setConfirmPassword('');
       return;
     }
 
@@ -59,12 +61,14 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
 
     if (result.success) {
-      showSnackbar('Registration successful! Please login.', 'success');
+      showSnackbar('Registration successful! Please check your email to verify your account (Check your spam folder too).', 'success');
       setTimeout(() => {
         navigation.navigate('Login');
-      }, 1500);
+      }, 3000);
     } else {
       showSnackbar(result.message || 'Registration failed.', 'error');
+      setPassword('');
+      setConfirmPassword('');
     }
   };
 
