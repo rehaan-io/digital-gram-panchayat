@@ -44,6 +44,15 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
+// Legal and Compliance Routes
+app.get('/privacy-policy', (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/privacy-policy.html'));
+});
+
+app.get('/delete-account', (req: Request, res: Response) => {
+  res.sendFile(path.join(__dirname, '../public/delete-account.html'));
+});
+
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Unhandled Application Error:', err);

@@ -1,17 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ImageBackground, Animated } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, ImageBackground, Animated, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { COLORS, globalStyles } from '../styles/theme';
+import { API_BASE_URL } from '../config/api';
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, token } = useAuth();
   const { t, language } = useLanguage();
   
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone. Your personal data will be anonymized, but your past civic complaints will remain for official records.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const res = await fetch(`${API_BASE_URL}/auth/delete-account`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (!res.ok) throw new Error("Failed to delete account");
+              Alert.alert("Success", "Your account has been deleted.");
+              await logout();
+            } catch (err: any) {
+              Alert.alert("Error", err.message || "An error occurred");
+              setIsDeleting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -166,6 +198,41 @@ const ProfileScreen: React.FC = () => {
               </View>
             )}
           </View>
+
+          {/* Legal & Account Actions */}
+          <View style={[globalStyles.card, { marginTop: 16 }]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardHeaderTitle}>Legal & Support</Text>
+            </View>
+            <View style={styles.divider} />
+            
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/privacy-policy`)}
+            >
+              <Ionicons name="document-text-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={styles.actionRowText}>Privacy Policy</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+            
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={handleDeleteAccount}
+              disabled={isDeleting}
+            >
+              <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+              <Text style={[styles.actionRowText, { color: COLORS.error }]}>
+                {isDeleting ? 'Deleting...' : 'Delete Account'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.error} style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+            <Text style={styles.logoutBtnText}>Log Out</Text>
+          </TouchableOpacity>
 
           <View style={{ height: 24 }} />
         </ScrollView>
@@ -328,4 +395,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 15,
   },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  actionRowText: {
+    fontSize: 15,
+    marginLeft: 12,
+    color: COLORS.text,
+    fontWeight: '500',
+  }
 });

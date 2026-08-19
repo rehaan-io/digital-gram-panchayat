@@ -12,12 +12,12 @@ const sendVerificationEmail = async (email: string, fullName: string, token: str
   console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendVerificationEmail via Nodemailer/Gmail');
   const verifyUrl = `https://api.grampanchayat.digital/api/auth/verify-email/${token}`;
   
-  console.log('\n==================================================');
+  console.log('n==================================================');
   console.log(`✉️  [EMAIL SENDING VIA GMAIL SMTP]`);
   console.log(`To      : ${fullName} <${email}>`);
   console.log(`Subject : Verify Your Panchayat Account`);
   console.log(`Link    : ${verifyUrl}`);
-  console.log('==================================================\n');
+  console.log('==================================================n');
 
   try {
     const user = process.env.GMAIL_USER;
@@ -79,12 +79,12 @@ const sendResetEmail = async (email: string, fullName: string, token: string) =>
   console.log('[LOG] EMAIL_FUNCTION_ENTERED - Entering sendResetEmail via Nodemailer/Gmail');
   const resetUrl = `https://api.grampanchayat.digital/api/auth/reset-password-page?token=${token}`;
   
-  console.log('\n==================================================');
+  console.log('n==================================================');
   console.log(`✉️  [EMAIL SENDING VIA GMAIL SMTP]`);
   console.log(`To      : ${fullName} <${email}>`);
   console.log(`Subject : Reset Your Panchayat Account Password`);
   console.log(`Link    : ${resetUrl}`);
-  console.log('==================================================\n');
+  console.log('==================================================n');
 
   try {
     const user = process.env.GMAIL_USER;
@@ -156,7 +156,7 @@ router.post('/register', async (req: Request, res: Response) => {
     return res.status(400).json({ message: 'Passwords do not match.' });
   }
 
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*d)(?=.*[^A-Za-z0-9]).{8,}$/;
   if (!passwordRegex.test(password)) {
     console.log('[LOG] REGISTER_FAILED - Password does not meet complexity requirements');
     return res.status(400).json({ 
@@ -180,7 +180,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Generate unique username automatically
-    const baseUsername = fullName.toLowerCase().replace(/\s+/g, '_').substring(0, 10);
+    const baseUsername = fullName.toLowerCase().replace(/s+/g, '_').substring(0, 10);
     const uniqueSuffix = Math.floor(1000 + Math.random() * 9000);
     const username = `${baseUsername}_${uniqueSuffix}`;
 
@@ -398,6 +398,127 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     return res.status(200).json({ message: 'Password has been reset successfully.' });
   } catch (error: any) {
     return res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+});
+
+import { authenticateJWT } from '../middleware/auth.middleware';
+import crypto from 'crypto';
+
+// Helper: Send deletion confirmation email
+const sendDeletionEmail = async (email: string, fullName: string, token: string) => {
+  const confirmUrl = `https://api.grampanchayat.digital/api/auth/confirm-delete-account?token=${token}`;
+  try {
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+    if (!user || !pass) return;
+
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false }
+    });
+
+    await transporter.sendMail({
+      from: `"Digital Panchayat" <${user}>`,
+      to: email,
+      subject: 'Confirm Account Deletion - Gorantla Grama Panchayati',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h3>Hello, ${fullName}!</h3>
+          <p>We received a request to delete your account. If you did not make this request, please ignore this email.</p>
+          <p>Click the link below to permanently anonymize and delete your personal information:</p>
+          <a href="${confirmUrl}" style="background-color: #D90368; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Confirm Account Deletion</a>
+        </div>
+      `
+    });
+  } catch (err) {
+    console.error('Failed to send deletion email', err);
+  }
+};
+
+// Helper: Anonymize user
+const anonymizeUser = async (userId: string) => {
+  const employee = await prisma.employee.findUnique({ where: { userId } });
+  if (employee) {
+    await prisma.ticket.updateMany({
+      where: { employeeId: employee.id },
+      data: { employeeId: null }
+    });
+    await prisma.employee.delete({ where: { id: employee.id } });
+  }
+
+  const randomSuffix = crypto.randomBytes(4).toString('hex');
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      fullName: 'Deleted Citizen',
+      email: `deleted-${randomSuffix}-${userId}@grampanchayat.digital`,
+      phone: `del-${randomSuffix}`,
+      password: 'invalidated-password',
+      fcmToken: null,
+      verificationToken: null,
+      isVerified: false
+    }
+  });
+};
+
+// In-App Deletion Route
+router.delete('/delete-account', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    await anonymizeUser(userId);
+    res.json({ message: 'Account successfully deleted and anonymized.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error during account deletion.' });
+  }
+});
+
+// External Deletion Request
+router.post('/request-delete-account', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: 'No active account found with that email.' });
+    }
+    if (user.fullName === 'Deleted Citizen') {
+      return res.status(400).json({ message: 'Account is already deleted.' });
+    }
+
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+    await prisma.user.update({ where: { id: user.id }, data: { verificationToken: token } });
+    
+    await sendDeletionEmail(user.email, user.fullName, token);
+    res.json({ message: 'Deletion email sent.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error requesting account deletion.' });
+  }
+});
+
+// External Deletion Confirm
+router.get('/confirm-delete-account', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).send('Invalid or missing token.');
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+
+    if (!user || user.verificationToken !== token) {
+      return res.status(400).send('Token is invalid or expired.');
+    }
+
+    await anonymizeUser(user.id);
+    res.send('<h1>Account Deleted Successfully</h1><p>Your personal information has been anonymized and removed from our active systems.</p>');
+  } catch (error) {
+    console.error(error);
+    res.status(400).send('<h1>Invalid Link</h1><p>This deletion link is invalid or has expired.</p>');
   }
 });
 
