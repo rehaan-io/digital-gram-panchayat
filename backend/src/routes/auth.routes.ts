@@ -160,7 +160,7 @@ router.post('/register', async (req: Request, res: Response) => {
   if (!passwordRegex.test(password)) {
     console.log('[LOG] REGISTER_FAILED - Password does not meet complexity requirements');
     return res.status(400).json({ 
-      message: 'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character.' 
+      message: 'Password must be exactly 8 or more characters in TOTAL, including at least 1 uppercase, 1 lowercase, 1 number, and 1 special character.' 
     });
   }
 

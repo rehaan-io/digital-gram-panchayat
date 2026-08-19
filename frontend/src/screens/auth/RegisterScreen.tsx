@@ -46,7 +46,7 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
 
     if (!passwordRegex.test(password)) {
-      showSnackbar('Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character.', 'error');
+      showSnackbar('Password must be at least 8 characters in TOTAL (including at least 1 uppercase, 1 lowercase, 1 number, and 1 special character).', 'error');
       return;
     }
 
@@ -59,10 +59,12 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
 
     if (result.success) {
-      showSnackbar('Registration successful! Please check your email to verify your account.', 'success');
-      navigation.navigate('Login');
+      showSnackbar('Registration successful! Please login.', 'success');
+      setTimeout(() => {
+        navigation.navigate('Login');
+      }, 1500);
     } else {
-      showSnackbar(result.message || 'An error occurred.', 'error');
+      showSnackbar(result.message || 'Registration failed.', 'error');
     }
   };
 
@@ -158,7 +160,7 @@ const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <Ionicons name="lock-closed-outline" size={18} color="#595959" style={styles.inputIcon} />
               <TextInput
                 style={[styles.textInput, { flex: 1 }]}
-                placeholder="At least 8 characters"
+                placeholder="At least 8 characters total"
                 placeholderTextColor="#A0AEC0"
                 value={password}
                 onChangeText={(val) => {
