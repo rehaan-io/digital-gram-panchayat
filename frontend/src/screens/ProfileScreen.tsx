@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { COLORS, globalStyles } from '../styles/theme';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, FILE_BASE_URL } from '../config/api';
 
 const ProfileScreen: React.FC = () => {
   const { user, logout, updateUser, token } = useAuth();
@@ -208,7 +208,7 @@ const ProfileScreen: React.FC = () => {
             
             <TouchableOpacity 
               style={styles.actionRow}
-              onPress={() => Linking.openURL(`${API_BASE_URL.replace('/api', '')}/privacy-policy`)}
+              onPress={() => Linking.openURL(`${FILE_BASE_URL}/privacy-policy`)}
             >
               <Ionicons name="document-text-outline" size={20} color={COLORS.textSecondary} />
               <Text style={styles.actionRowText}>Privacy Policy</Text>
@@ -219,12 +219,11 @@ const ProfileScreen: React.FC = () => {
 
             <TouchableOpacity 
               style={styles.actionRow}
-              onPress={handleDeleteAccount}
-              disabled={isDeleting}
+              onPress={() => Linking.openURL(`${FILE_BASE_URL}/delete-account`)}
             >
               <Ionicons name="trash-outline" size={20} color={COLORS.error} />
               <Text style={[styles.actionRowText, { color: COLORS.error }]}>
-                {isDeleting ? 'Deleting...' : 'Delete Account'}
+                Delete Account
               </Text>
               <Ionicons name="chevron-forward" size={16} color={COLORS.error} style={{ marginLeft: 'auto' }} />
             </TouchableOpacity>
