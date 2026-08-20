@@ -244,7 +244,6 @@ router.get('/verify-email/:token', async (req: Request, res: Response) => {
       where: { id: user.id },
       data: {
         isVerified: true,
-        verificationToken: null,
       },
     });
 
