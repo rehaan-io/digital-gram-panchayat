@@ -293,15 +293,13 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Citizen must verify email before logging in (Bypassed for now)
-    /*
+    // Citizen must verify email before logging in
     if (user.role === 'CITIZEN' && !user.isVerified) {
       return res.status(403).json({
         message: 'Your email is not verified. Please check your inbox and verify your email.',
         unverified: true,
       });
     }
-    */
 
     // Generate JWT token
     const token = jwt.sign(
